@@ -1,5 +1,5 @@
 """
-Swagger UI HTML template for ComfyUI-OneAPI
+Swagger UI HTML template for ComfyUI-OneAPI-Swagger
 """
 
 SWAGGER_UI_HTML = """
@@ -8,7 +8,7 @@ SWAGGER_UI_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ComfyUI-OneAPI - Swagger UI</title>
+    <title>ComfyUI-OneAPI-Swagger - Swagger UI</title>
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css">
     <style>
         body {
@@ -105,7 +105,7 @@ SWAGGER_UI_HTML = """
 <body>
     <!-- 自定义头部 -->
     <div class="custom-header">
-        <h1>✨ ComfyUI-OneAPI</h1>
+        <h1>✨ ComfyUI-OneAPI-Swagger</h1>
         <p>简洁的 REST API 接口执行 ComfyUI 工作流</p>
         <div class="links">
             <a href="https://github.com/hackyinge/ComfyUI-OneAPI" target="_blank">📦 GitHub</a>

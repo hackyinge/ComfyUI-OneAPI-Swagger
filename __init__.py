@@ -12,9 +12,9 @@ def init_oneapi():
         spec = importlib.util.spec_from_file_location("oneapi", os.path.join(current_dir, "oneapi.py"))
         oneapi = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(oneapi)
-        print("ComfyUI-OneAPI loaded")
+        print("ComfyUI-OneAPI-Swagger loaded")
     except Exception as e:
-        print(f"ComfyUI-OneAPI failed to load: {str(e)}")
+        print(f"ComfyUI-OneAPI-Swagger failed to load: {str(e)}")
 
 # This function will be automatically called when ComfyUI loads the plugin
 WEB_DIRECTORY = "./web"

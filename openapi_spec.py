@@ -1,15 +1,15 @@
 """
-OpenAPI specification for ComfyUI-OneAPI
+OpenAPI specification for ComfyUI-OneAPI-Swagger
 """
 
 OPENAPI_SPEC = {
     "openapi": "3.0.3",
     "info": {
-        "title": "ComfyUI-OneAPI",
+        "title": "ComfyUI-OneAPI-Swagger",
         "description": """
-# ComfyUI-OneAPI ✨
+# ComfyUI-OneAPI-Swagger ✨
 
-ComfyUI-OneAPI 提供简洁的 REST API 接口来执行 ComfyUI 工作流。
+ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作流。
 
 ## 核心特性
 

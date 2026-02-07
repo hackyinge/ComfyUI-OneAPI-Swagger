@@ -1,5 +1,5 @@
 [project]
-name = "ComfyUI-OneAPI"
+name = "ComfyUI-OneAPI-Swagger"
 description = "Simple REST API interfaces for ComfyUI with dynamic parameter replacement and output management"
 version = "1.0.1"
 license = { file = "LICENSE" }
@@ -10,9 +10,9 @@ Repository = "https://github.com/puke3615/ComfyUI-OneAPI"
 
 [tool.comfy]
 PublisherId = "puke3615"
-DisplayName = "ComfyUI-OneAPI"
+DisplayName = "ComfyUI-OneAPI-Swagger"
 Icon = ""
 
 [tool.comfy.author]
 name = "puke3615"
-url = "https://github.com/puke3615" 
+url = "https://github.com/puke3615"

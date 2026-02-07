@@ -744,4 +744,4 @@ async def _load_workflow_from_url(url):
             except Exception as e:
                 raise Exception(f"Invalid workflow JSON from url: {e}")
 
-print("ComfyUI-OneAPI routes registered") 
+print("ComfyUI-OneAPI-Swagger routes registered")

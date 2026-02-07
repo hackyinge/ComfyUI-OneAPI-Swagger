@@ -1,6 +1,6 @@
-# ComfyUI-OneAPI ✨
+# ComfyUI-OneAPI-Swagger ✨
 
-ComfyUI-OneAPI 是一个为 ComfyUI 提供简单REST API接口的插件，只需一个API请求即可执行复杂的ComfyUI工作流。
+ComfyUI-OneAPI-Swagger 是一个为 ComfyUI 提供简单REST API接口的插件，只需一个API请求即可执行复杂的ComfyUI工作流。
 
 > 💡 **项目说明**  
 > 本项目基于 [puke3615/ComfyUI-OneAPI](https://github.com/puke3615/ComfyUI-OneAPI) 进行二次开发。  

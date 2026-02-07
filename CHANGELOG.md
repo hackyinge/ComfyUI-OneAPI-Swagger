@@ -41,7 +41,7 @@
 ### 📦 新增文件
 
 ```
-ComfyUI-OneAPI/
+ComfyUI-OneAPI-Swagger/
 ├── openapi_spec.py              # OpenAPI 3.0.3 规范定义
 ├── swagger_ui.py                # Swagger UI HTML 模板
 ├── CHANGELOG.md                 # 更新日志（本文件）

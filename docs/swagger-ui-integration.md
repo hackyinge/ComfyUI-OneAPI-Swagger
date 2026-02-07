@@ -1,8 +1,8 @@
-# ComfyUI-OneAPI Swagger UI 集成
+# ComfyUI-OneAPI-Swagger 集成
 
 ## 📋 功能概览
 
-本次更新为 ComfyUI-OneAPI 添加了完整的 Swagger UI 支持，提供交互式的 API 文档和测试界面。
+本次更新为 ComfyUI-OneAPI-Swagger 添加了完整的 Swagger UI 支持，提供交互式的 API 文档和测试界面。
 
 ## 🎯 新增功能
 
