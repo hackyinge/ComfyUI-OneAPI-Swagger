@@ -17,6 +17,8 @@ ComfyUI-OneAPI-Swagger 是一个为 ComfyUI 提供简单REST API接口的插件�
 - **智能输出管理** - 自动区分多个SaveImage节点输出，便于处理复杂工作流
 - **UI界面集成** - 提供右键菜单快速保存API工作流和设置节点参数
 - **灵活标记系统** - 支持输入参数标记（`$param.field`）和输出标记（`$output.name`）
+- **Gemini API 兼容** - 直接兼容 Google AI SDK 的 `generateContent` 格式，返回 Base64 图片
+- **OpenAI API 兼容** - 支持 `/v1/chat/completions` 接口，无缝对接 ChatGPT 客户端/插件
 
 ### 🚀 核心优势
 - **代码量减少95%** - 从数百行复杂逻辑简化为单个API调用
@@ -119,6 +121,32 @@ curl -X POST "http://localhost:8188/oneapi/v1/execute" \
 
 **✨ 如何标记输出节点：**
 - 💾 在SaveImage节点标题添加 `$output.background` 或 `$output.character`
+
+### 3️⃣ Gemini 兼容 - 无缝对接 LLM SDK 🤖
+
+通过 `/oneapi/v1/models/{model}:generateContent` 端点，你可以直接使用 Google AI SDK 调用 ComfyUI 工作流：
+
+```python
+# 使用 Google AI SDK 调用
+from google import generativeai as genai
+client = genai.GenerativeModel("your_workflow_name")
+response = client.generate_content("a cool steampunk robot")
+# response 内容将包含 Base64 图片数据
+```
+
+### 4️⃣ OpenAI 兼容 - 对接 ChatGPT 客户端 💬
+
+通过 `/v1/chat/completions` 端点，你可以伪装成一个聊天机器人：
+
+```bash
+curl http://localhost:8188/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "your_workflow_name",
+    "messages": [{"role": "user", "content": "a futuristic car"}]
+  }'
+```
+响应内容将包含生成的图片链接。
 
 ## 📋 高级功能
 

@@ -67,6 +67,14 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
         {
             "name": "management",
             "description": "工作流管理相关接口"
+        },
+        {
+            "name": "gemini",
+            "description": "Gemini 兼容接口 (Google AI SDK 适配)"
+        },
+        {
+            "name": "openai",
+            "description": "OpenAI 兼容接口 (ChatGPT 适配)"
         }
     ],
     "paths": {
@@ -234,6 +242,83 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1beta/models/{model}:generateContent": {
+            "$ref": "#/paths/~1oneapi~1v1~1models~1{model}:generateContent"
+        },
+        "/v1/models/{model}:generateContent": {
+            "$ref": "#/paths/~1oneapi~1v1~1models~1{model}:generateContent"
+        },
+        "/oneapi/v1/models/{model}:generateContent": {
+            "post": {
+                "tags": ["gemini"],
+                "summary": "Gemini 兼容内容生成",
+                "description": "提供与 Google Gemini API 兼容的接口。支持多种模型路径如 /v1beta/models/{model}:generateContent。",
+                "operationId": "geminiGenerateContent",
+                "parameters": [
+                    {
+                        "name": "model",
+                        "in": "path",
+                        "required": True,
+                        "description": "模型标识符，对应本地保存的工作流文件名",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GeminiGenerateContentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "成功生成内容",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GeminiGenerateContentResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/chat/completions": {
+            "post": {
+                "tags": ["openai"],
+                "summary": "OpenAI 兼容对话生成",
+                "description": "提供与 ChatGPT API 兼容的接口。将 messages 解析为 prompt，model 映射为工作流文件名。",
+                "operationId": "openaiChatCompletions",
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OpenAIChatCompletionsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "成功生成响应",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OpenAIChatCompletionsResponse"
                                 }
                             }
                         }
@@ -409,6 +494,114 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                     "error": {
                         "type": "string",
                         "description": "错误信息"
+                    }
+                }
+            },
+            "GeminiGenerateContentRequest": {
+                "type": "object",
+                "required": ["contents"],
+                "properties": {
+                    "contents": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "role": {"type": "string"},
+                                "parts": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "text": {"type": "string"}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "GeminiGenerateContentResponse": {
+                "type": "object",
+                "properties": {
+                    "candidates": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "content": {
+                                    "type": "object",
+                                    "properties": {
+                                        "role": {"type": "string"},
+                                        "parts": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "text": {"type": "string"},
+                                                    "inlineData": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "mimeType": {"type": "string"},
+                                                            "data": {"type": "string", "description": "Base64 encoded image data"}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "finishReason": {"type": "string"}
+                            }
+                        }
+                    }
+                }
+            },
+            "OpenAIChatCompletionsRequest": {
+                "type": "object",
+                "required": ["model", "messages"],
+                "properties": {
+                    "model": {"type": "string", "example": "wenshengtu_api"},
+                    "messages": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "role": {"type": "string", "enum": ["user", "assistant", "system"]},
+                                "content": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {"type": "array", "items": {"type": "object"}}
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "OpenAIChatCompletionsResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "object": {"type": "string"},
+                    "created": {"type": "integer"},
+                    "model": {"type": "string"},
+                    "choices": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "index": {"type": "integer"},
+                                "message": {
+                                    "type": "object",
+                                    "properties": {
+                                        "role": {"type": "string"},
+                                        "content": {"type": "string"}
+                                    }
+                                },
+                                "finish_reason": {"type": "string"}
+                            }
+                        }
                     }
                 }
             }

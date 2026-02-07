@@ -10,6 +10,7 @@ import aiohttp
 import tempfile
 import mimetypes
 from urllib.parse import urlparse
+import base64
 from aiohttp import web
 from server import PromptServer
 import folder_paths
@@ -185,6 +186,192 @@ async def execute_workflow(request):
     except Exception as e:
         print(f"Error executing workflow: {str(e)}, {traceback.format_exc()}")
         return web.json_response({"error": str(e)}, status=500)
+
+@routes.post('/oneapi/v1/models/{model}:generateContent')
+@routes.post('/v1beta/models/{model}:generateContent')
+@routes.post('/v1/models/{model}:generateContent')
+async def generate_content(request):
+    """
+    Open API compatible with Gemini generateContent format
+    Supports standard Gemini paths for easier integration
+    """
+    try:
+        model = request.match_info.get('model', 'default')
+        data = await request.json()
+        
+        # 1. Extract prompt from Gemini format
+        contents = data.get('contents', [])
+        if not contents or not contents[0].get('parts'):
+            return web.json_response({"error": "Invalid contents/parts"}, status=400)
+        
+        prompt_text = contents[0]['parts'][0].get('text', '')
+        if not prompt_text:
+            return web.json_response({"error": "Prompt text is empty"}, status=400)
+            
+        # 2. Determine workflow
+        workflow_name = model
+        if ':' in workflow_name:
+            workflow_name = workflow_name.split(':')[0]
+            
+        try:
+            workflow = _load_workflow_from_local(workflow_name, request)
+        except Exception as e:
+            msg = str(e)
+            # Fallback to try generic name if specific one fails
+            try:
+                workflow = _load_workflow_from_local('default_txt2img', request)
+            except:
+                return web.json_response({"error": f"Workflow '{workflow_name}' not found. {msg}"}, status=404)
+
+        # 3. Process with execute_workflow internal logic
+        params = {"prompt": prompt_text}
+        workflow = await _apply_params_to_workflow(workflow, params, request)
+        output_id_2_var = await _extract_output_nodes(workflow)
+        client_id = str(uuid.uuid4())
+        
+        prompt_id = await _queue_prompt(workflow, client_id, {}, request)
+        execution_result = await _wait_for_results(prompt_id, 300, request, output_id_2_var)
+        
+        if execution_result.get('status') != 'completed':
+            return web.json_response({"error": f"Execution failed: {execution_result.get('status')}"}, status=500)
+            
+        # 4. Construct Gemini response
+        parts = []
+        parts.append({"text": f"Successfully generated images for: {prompt_text}"})
+        
+        images = execution_result.get('images', [])
+        for img_url in images:
+            img_data_base64 = await _fetch_image_base64(img_url)
+            if img_data_base64:
+                parts.append({
+                    "inlineData": {
+                        "mimeType": "image/png",
+                        "data": img_data_base64
+                    }
+                })
+
+        response_data = {
+            "candidates": [
+                {
+                    "content": {
+                        "role": "model",
+                        "parts": parts
+                    },
+                    "finishReason": "STOP"
+                }
+            ]
+        }
+        
+        return web.json_response(response_data)
+        
+    except Exception as e:
+        print(f"Error in generateContent: {str(e)}, {traceback.format_exc()}")
+        return web.json_response({"error": str(e)}, status=500)
+
+@routes.post('/oneapi/v1/chat/completions')
+@routes.post('/v1/chat/completions')
+async def chat_completions(request):
+    """
+    Open API compatible with OpenAI chat completions format
+    """
+    try:
+        data = await request.json()
+        
+        # 1. Extract model and prompt from OpenAI format
+        model_name = data.get('model', 'default')
+        messages = data.get('messages', [])
+        
+        if not messages:
+            return web.json_response({"error": "Messages list is empty"}, status=400)
+            
+        # Get the last user message text
+        prompt_text = ""
+        for msg in reversed(messages):
+            if msg.get('role') == 'user':
+                content = msg.get('content')
+                if isinstance(content, str):
+                    prompt_text = content
+                elif isinstance(content, list):
+                    # Handle multi-modal format (text + images)
+                    for part in content:
+                        if part.get('type') == 'text':
+                            prompt_text = part.get('text', '')
+                            break
+                break
+        
+        if not prompt_text:
+            return web.json_response({"error": "No user prompt found in messages"}, status=400)
+            
+        # 2. Load workflow
+        try:
+            workflow = _load_workflow_from_local(model_name, request)
+        except Exception as e:
+            try:
+                workflow = _load_workflow_from_local('default_txt2img', request)
+            except:
+                return web.json_response({"error": f"Workflow '{model_name}' not found."}, status=404)
+
+        # 3. Process
+        params = {"prompt": prompt_text}
+        workflow = await _apply_params_to_workflow(workflow, params, request)
+        output_id_2_var = await _extract_output_nodes(workflow)
+        client_id = str(uuid.uuid4())
+        
+        prompt_id = await _queue_prompt(workflow, client_id, {}, request)
+        execution_result = await _wait_for_results(prompt_id, 300, request, output_id_2_var)
+        
+        if execution_result.get('status') != 'completed':
+            return web.json_response({"error": "Execution failed"}, status=500)
+            
+        # 4. Construct OpenAI response
+        # OpenAI usually returns text. Since this is an image gen tool, we provide markdown or base64.
+        # Here we'll return a markdown-like response with image info.
+        images = execution_result.get('images', [])
+        image_markdown = ""
+        for i, img_url in enumerate(images):
+            image_markdown += f"\n![Image {i+1}]({img_url})"
+            
+        content_res = f"Generated {len(images)} images based on your prompt: '{prompt_text}'.{image_markdown}"
+        
+        response_data = {
+            "id": f"chatcmpl-{uuid.uuid4()}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": model_name,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": content_res
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+            }
+        }
+        
+        return web.json_response(response_data)
+        
+    except Exception as e:
+        print(f"Error in chatCompletions: {str(e)}, {traceback.format_exc()}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def _fetch_image_base64(url):
+    """Fetch image and return base64 encoded string"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.read()
+                    return base64.b64encode(data).decode('utf-8')
+    except Exception as e:
+        print(f"Failed to fetch image for base64: {e}")
+    return None
 
 async def _apply_params_to_workflow(workflow, params, request=None):
     """
@@ -714,20 +901,32 @@ async def _wait_for_results(prompt_id, timeout=None, request=None, output_id_2_v
 # New: Load workflow from local file
 def _load_workflow_from_local(filename, request=None):
     """
-    Load workflow JSON from user's workflow directory
+    Load workflow JSON from user's workflow directory or plugin's workflows directory
     """
-    if not request or not prompt_server.user_manager:
-        raise Exception("User context is required to load workflow from user directory")
-    
     name_with_json = filename if filename.endswith('.json') else f'{filename}.json'
-    relative_path = f'{API_WORKFLOWS_DIR}/{name_with_json}'
-    api_workflow_path = prompt_server.user_manager.get_request_user_filepath(request, relative_path, create_dir=False)
     
-    if not api_workflow_path or not os.path.isfile(api_workflow_path):
-        raise Exception(f"Workflow file not found in user directory: {filename}")
+    # 1. Try user directory (Priority 1)
+    if request and prompt_server.user_manager:
+        relative_path = f'{API_WORKFLOWS_DIR}/{name_with_json}'
+        user_workflow_path = prompt_server.user_manager.get_request_user_filepath(request, relative_path, create_dir=False)
+        if user_workflow_path and os.path.isfile(user_workflow_path):
+            with open(user_workflow_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
     
-    with open(api_workflow_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    # 2. Try plugin directory (Priority 2)
+    plugin_workflows_dir = os.path.join(os.path.dirname(__file__), 'workflows')
+    plugin_workflow_path = os.path.join(plugin_workflows_dir, name_with_json)
+    if os.path.isfile(plugin_workflow_path):
+        with open(plugin_workflow_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+            
+    # 3. Fallback to path_workflows (original global folder)
+    fallback_path = os.path.join(path_workflows, name_with_json)
+    if os.path.isfile(fallback_path):
+        with open(fallback_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+            
+    raise Exception(f"Workflow file not found: {filename} (searched in user dir, plugin dir, and fallback dir)")
 
 # New: Load workflow from URL
 async def _load_workflow_from_url(url):
