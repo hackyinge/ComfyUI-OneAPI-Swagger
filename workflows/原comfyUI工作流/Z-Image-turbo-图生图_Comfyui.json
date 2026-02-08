@@ -1,0 +1,656 @@
+{
+  "id": "07fd3352-11ca-4df8-bebb-45432c155e4d",
+  "revision": 0,
+  "last_node_id": 148,
+  "last_link_id": 235,
+  "nodes": [
+    {
+      "id": 143,
+      "type": "VAEEncode",
+      "pos": [
+        939.072661524779,
+        1524.5581011974418
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "图像",
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 213
+        },
+        {
+          "label": "VAE",
+          "name": "vae",
+          "type": "VAE",
+          "link": 212
+        }
+      ],
+      "outputs": [
+        {
+          "label": "Latent",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            224
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "VAEEncode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 148,
+      "type": "SaveImage",
+      "pos": [
+        1800,
+        1120
+      ],
+      "size": [
+        530,
+        470
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 235
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 146,
+      "type": "UNETLoader",
+      "pos": [
+        510,
+        1040
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            234
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "z_image_turbo_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "VAEDecode",
+      "pos": [
+        1558.977598832556,
+        1088.654102335157
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "Latent",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 19
+        },
+        {
+          "label": "VAE",
+          "name": "vae",
+          "type": "VAE",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "label": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            235
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "VAEDecode",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 22,
+      "type": "KSampler",
+      "pos": [
+        1200,
+        1070
+      ],
+      "size": [
+        307.751033747827,
+        437.8599564831527
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 234
+        },
+        {
+          "label": "正面条件",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 221
+        },
+        {
+          "label": "负面条件",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 222
+        },
+        {
+          "label": "Latent",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 224
+        },
+        {
+          "label": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          }
+        },
+        {
+          "label": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          }
+        },
+        {
+          "label": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          }
+        },
+        {
+          "label": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          }
+        },
+        {
+          "label": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          }
+        },
+        {
+          "label": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "label": "Latent",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "KSampler",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        269376945602299,
+        "randomize",
+        10,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 24,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1020,
+        1060
+      ],
+      "size": [
+        197.712890625,
+        26
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "条件",
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "label": "条件",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            222
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "ConditioningZeroOut",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 23,
+      "type": "CLIPTextEncode",
+      "pos": [
+        820,
+        1100
+      ],
+      "size": [
+        350,
+        360
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "CLIP",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 218
+        },
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "条件",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            26,
+            221
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "CLIPTextEncode",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "日本动漫风格，赛璐珞着色。吴小凡（C1）的极端特写，镜头聚焦于他异常清澈通透的杏眼，瞳孔中映出暗红色护身符的微光。他紧抿的嘴唇和微微蹙起的眉头显示出一种超越年龄的决绝与冷酷。新海诚式的高光与眼神细节，氛围压抑而充满灵异感。\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【视觉风格】Visual Style\nJapanese anime style, cel-shaded, vibrant colors, expressive eyes, dynamic poses, Studio Ghibli/Makoto Shinkai quality\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【镜头运动】Camera Movement\nSlow Dolly In Shot combined with Zoom In Shot (Final Frame 结束帧)\n\n【构图指导】Composition Guide\nComposition: Tight close-up on subject, filling frame with detail and intimacy.\n\n【结束帧要求】展现动作完成后的最终状态,人物/物体的终点位置、姿态和情绪变化,体现镜头运动带来的视角变化。\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【角色一致性要求】CHARACTER CONSISTENCY REQUIREMENTS - CRITICAL\n⚠️ 如果提供了角色参考图,画面中的人物外观必须严格遵循参考图:\n• 面部特征: 五官轮廓、眼睛颜色和形状、鼻子和嘴巴的结构必须完全一致\n• 发型发色: 头发的长度、颜色、质感、发型样式必须保持一致\n• 服装造型: 服装的款式、颜色、材质、配饰必须与参考图匹配\n• 体型特征: 身材比例、身高体型必须保持一致\n⚠️ 这是最高优先级要求,不可妥协!\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【视觉风格】Visual Style\nJapanese anime style, cel-shaded, vibrant colors, expressive eyes, dynamic poses, Studio Ghibli/Makoto Shinkai quality\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【镜头运动】Camera Movement\nSlow Dolly In Shot combined with Zoom In Shot (Final Frame 结束帧)\n\n【构图指导】Composition Guide\nComposition: Tight close-up on subject, filling frame with detail and intimacy.\n\n【结束帧要求】展现动作完成后的最终状态,人物/物体的终点位置、姿态和情绪变化,体现镜头运动带来的视角变化。\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【角色一致性要求】CHARACTER CONSISTENCY REQUIREMENTS - CRITICAL\n⚠️ 如果提供了角色参考图,画面中的人物外观必须严格遵循参考图:\n• 面部特征: 五官轮廓、眼睛颜色和形状、鼻子和嘴巴的结构必须完全一致\n• 发型发色: 头发的长度、颜色、质感、发型样式必须保持一致\n• 服装造型: 服装的款式、颜色、材质、配饰必须与参考图匹配\n• 体型特征: 身材比例、身高体型必须保持一致\n⚠️ 这是最高优先级要求,不可妥协!\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【视觉风格】Visual Style\nJapanese anime style, cel-shaded, vibrant colors, expressive eyes, dynamic poses, Studio Ghibli/Makoto Shinkai quality\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【镜头运动】Camera Movement\nSlow Dolly In Shot combined with Zoom In Shot (Final Frame 结束帧)\n\n【构图指导】Composition Guide\nComposition: Tight close-up on subject, filling frame with detail and intimacy.\n\n【结束帧要求】展现动作完成后的最终状态,人物/物体的终点位置、姿态和情绪变化,体现镜头运动带来的视角变化。\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【角色一致性要求】CHARACTER CONSISTENCY REQUIREMENTS - CRITICAL\n⚠️ 如果提供了角色参考图,画面中的人物外观必须严格遵循参考图:\n• 面部特征: 五官轮廓、眼睛颜色和形状、鼻子和嘴巴的结构必须完全一致\n• 发型发色: 头发的长度、颜色、质感、发型样式必须保持一致\n• 服装造型: 服装的款式、颜色、材质、配饰必须与参考图匹配\n• 体型特征: 身材比例、身高体型必须保持一致\n⚠️ 这是最高优先级要求,不可妥协!\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【视觉风格】Visual Style\nJapanese anime style, cel-shaded, vibrant colors, expressive eyes, dynamic poses, Studio Ghibli/Makoto Shinkai quality\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【镜头运动】Camera Movement\nSlow Dolly In Shot combined with Zoom In Shot (Final Frame 结束帧)\n\n【构图指导】Composition Guide\nComposition: Tight close-up on subject, filling frame with detail and intimacy.\n\n【结束帧要求】展现动作完成后的最终状态,人物/物体的终点位置、姿态和情绪变化,体现镜头运动带来的视角变化。\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【角色一致性要求】CHARACTER CONSISTENCY REQUIREMENTS - CRITICAL\n⚠️ 如果提供了角色参考图,画面中的人物外观必须严格遵循参考图:\n• 面部特征: 五官轮廓、眼睛颜色和形状、鼻子和嘴巴的结构必须完全一致\n• 发型发色: 头发的长度、颜色、质感、发型样式必须保持一致\n• 服装造型: 服装的款式、颜色、材质、配饰必须与参考图匹配\n• 体型特征: 身材比例、身高体型必须保持一致\n⚠️ 这是最高优先级要求,不可妥协!\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【视觉风格】Visual Style\nJapanese anime style, cel-shaded, vibrant colors, expressive eyes, dynamic poses, Studio Ghibli/Makoto Shinkai quality\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【镜头运动】Camera Movement\nSlow Dolly In Shot combined with Zoom In Shot (Final Frame 结束帧)\n\n【构图指导】Composition Guide\nComposition: Tight close-up on subject, filling frame with detail and intimacy.\n\n【结束帧要求】展现动作完成后的最终状态,人物/物体的终点位置、姿态和情绪变化,体现镜头运动带来的视角变化。\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【角色一致性要求】CHARACTER CONSISTENCY REQUIREMENTS - CRITICAL\n⚠️ 如果提供了角色参考图,画面中的人物外观必须严格遵循参考图:\n• 面部特征: 五官轮廓、眼睛颜色和形状、鼻子和嘴巴的结构必须完全一致\n• 发型发色: 头发的长度、颜色、质感、发型样式必须保持一致\n• 服装造型: 服装的款式、颜色、材质、配饰必须与参考图匹配\n• 体型特征: 身材比例、身高体型必须保持一致\n⚠️ 这是最高优先级要求,不可妥协!\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【视觉风格】Visual Style\nJapanese anime style, cel-shaded, vibrant colors, expressive eyes, dynamic poses, Studio Ghibli/Makoto Shinkai quality\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【镜头运动】Camera Movement\nSlow Dolly In Shot combined with Zoom In Shot (Final Frame 结束帧)\n\n【构图指导】Composition Guide\nComposition: Tight close-up on subject, filling frame with detail and intimacy.\n\n【结束帧要求】展现动作完成后的最终状态,人物/物体的终点位置、姿态和情绪变化,体现镜头运动带来的视角变化。\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【角色一致性要求】CHARACTER CONSISTENCY REQUIREMENTS - CRITICAL\n⚠️ 如果提供了角色参考图,画面中的人物外观必须严格遵循参考图:\n• 面部特征: 五官轮廓、眼睛颜色和形状、鼻子和嘴巴的结构必须完全一致\n• 发型发色: 头发的长度、颜色、质感、发型样式必须保持一致\n• 服装造型: 服装的款式、颜色、材质、配饰必须与参考图匹配\n• 体型特征: 身材比例、身高体型必须保持一致\n⚠️ 这是最高优先级要求,不可妥协!\n\n"
+      ]
+    },
+    {
+      "id": 27,
+      "type": "VAELoader",
+      "pos": [
+        520,
+        1520
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "vae_name",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "label": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            20,
+            212
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "VAELoader",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "LoadImage",
+      "pos": [
+        -10,
+        1050
+      ],
+      "size": [
+        440,
+        730
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "image",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          }
+        },
+        {
+          "label": "upload",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "label": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            213
+          ]
+        },
+        {
+          "label": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "LoadImage",
+        "widget_ue_connectable": {},
+        "image": "clipspace/clipspace-painted-masked-1764946303576.png [input]"
+      },
+      "widgets_values": [
+        "下载.png",
+        "image"
+      ]
+    },
+    {
+      "id": 147,
+      "type": "CLIPLoader",
+      "pos": [
+        520,
+        1250
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            218
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen_3_4b.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    }
+  ],
+  "links": [
+    [
+      19,
+      22,
+      0,
+      20,
+      0,
+      "LATENT"
+    ],
+    [
+      20,
+      27,
+      0,
+      20,
+      1,
+      "VAE"
+    ],
+    [
+      26,
+      23,
+      0,
+      24,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      212,
+      27,
+      0,
+      143,
+      1,
+      "VAE"
+    ],
+    [
+      213,
+      15,
+      0,
+      143,
+      0,
+      "IMAGE"
+    ],
+    [
+      218,
+      147,
+      0,
+      23,
+      0,
+      "CLIP"
+    ],
+    [
+      221,
+      23,
+      0,
+      22,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      222,
+      24,
+      0,
+      22,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      224,
+      143,
+      0,
+      22,
+      3,
+      "LATENT"
+    ],
+    [
+      234,
+      146,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      235,
+      20,
+      0,
+      148,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "General - 通用",
+      "bounding": [
+        480,
+        980,
+        2350,
+        820
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 12,
+      "title": "General - 通用",
+      "bounding": [
+        -30,
+        980,
+        480,
+        810
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6914226140271971,
+      "offset": [
+        885.2532355624023,
+        -398.47349257238835
+      ]
+    },
+    "frontendVersion": "1.37.11",
+    "workflowRendererVersion": "LG",
+    "links_added_by_ue": [],
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "VHS_MetadataImage": true,
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "VHS_latentpreview": true
+  },
+  "version": 0.4
+}

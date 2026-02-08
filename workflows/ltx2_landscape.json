@@ -186,7 +186,7 @@
   },
   "16": {
     "inputs": {
-      "text": "镜头从幼年吴小凡恐惧的视角开始，缓慢向右平移，展现王老太太闭眼摇头晃脑、二神敲鼓诵唱的仪式场景，随后黄仙‘黄淘气’附体上身，王老太太身体颤抖、结巴开口，最终稳定下来，眼神锐利地指向小凡。\"（含糊不清的唱词）...迎迎风...（结巴）我...我是黄堂报马黄淘气...今天...特为...小金童的事...赶回来...\"",
+      "text": "$param.text",
       "clip": [
         "107",
         0
@@ -462,7 +462,7 @@
   },
   "45": {
     "inputs": {
-      "image": "下载 (2).png"
+      "image": "$param.image"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -471,11 +471,11 @@
   },
   "47": {
     "inputs": {
-      "image": "下载 (3).png"
+      "image": "$param.image2"
     },
     "class_type": "LoadImage",
     "_meta": {
-      "title": "LAST FRAME"
+      "title": "$param.image2"
     }
   },
   "48": {

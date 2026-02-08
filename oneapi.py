@@ -51,7 +51,27 @@ async def openapi_spec(request):
     """
     OpenAPI specification JSON
     """
-    return web.json_response(OPENAPI_SPEC)
+    # 动态获取当前请求的地址，避免硬编码
+    protocol = request.scheme
+    host = request.host
+    base_url = f"{protocol}://{host}"
+    
+    # 将规范中的 localhost 地址动态替换为当前访问地址
+    spec_json = json.dumps(OPENAPI_SPEC)
+    spec_json = spec_json.replace("http://localhost:8118", base_url)
+    spec_json = spec_json.replace("http://localhost:8188", base_url)
+    
+    spec = json.loads(spec_json)
+    
+    # 更新 servers 列表
+    spec['servers'] = [
+        {
+            "url": base_url,
+            "description": "当前 ComfyUI 服务器"
+        }
+    ]
+    
+    return web.json_response(spec)
 
 @routes.post('/oneapi/v1/save-api-workflow')
 async def save_api_workflow(request):
@@ -198,24 +218,47 @@ async def generate_content(request):
     """
     Open API compatible with Gemini generateContent format
     Supports standard Gemini paths for easier integration
+    支持文生图和图生图两种模式
     """
     try:
         model = request.match_info.get('model', 'default')
         data = await request.json()
         
-        # 1. Extract prompt from Gemini format
+        # 1. 从 Gemini 格式提取内容 (支持多模态: 文本 + 图像)
         contents = data.get('contents', [])
         if not contents or not contents[0].get('parts'):
             return web.json_response({"error": "Invalid contents/parts"}, status=400)
         
-        prompt_text = contents[0]['parts'][0].get('text', '')
+        parts = contents[0].get('parts', [])
+        prompt_texts = []
+        image_data = None
+        
+        # 检查是否有图像输入
+        for part in parts:
+            if 'text' in part:
+                prompt_texts.append(part['text'])
+            elif 'inlineData' in part:
+                # 获取 Base64 图像数据
+                mime_type = part['inlineData'].get('mimeType', 'image/png')
+                base64_data = part['inlineData'].get('data', '')
+                if base64_data:
+                    image_data = f"data:{mime_type};base64,{base64_data}"
+        
+        prompt_text = "\n".join(prompt_texts).strip()
         if not prompt_text:
             return web.json_response({"error": "Prompt text is empty"}, status=400)
             
-        # 2. Determine workflow
+        # 2. 根据是否有图片输入选择工作流
         workflow_name = model
         if ':' in workflow_name:
             workflow_name = workflow_name.split(':')[0]
+        
+        # 如果有图片输入，使用图生图工作流；否则使用文生图工作流
+        if image_data:
+            workflow_name = f"{workflow_name}-TT"  # 图生图工作流
+            print(f"[OneAPI] 检测到图片输入，使用图生图工作流: {workflow_name}")
+        else:
+            print(f"[OneAPI] 无图片输入，使用文生图工作流: {workflow_name}")
             
         try:
             workflow = _load_workflow_from_local(workflow_name, request)
@@ -223,11 +266,32 @@ async def generate_content(request):
             msg = str(e)
             # Fallback to try generic name if specific one fails
             try:
-                workflow = _load_workflow_from_local('default_txt2img', request)
+                fallback_name = 'default_txt2img-TT' if image_data else 'default_txt2img'
+                workflow = _load_workflow_from_local(fallback_name, request)
             except:
                 return web.json_response({"error": f"Workflow '{workflow_name}' not found. {msg}"}, status=404)
 
-        # 3. Process with execute_workflow internal logic
+        # 3. 处理图像上传（如果有）
+        uploaded_filename = None
+        if image_data:
+            try:
+                # 解析 Base64 图像并上传
+                if image_data.startswith('data:'):
+                    header, encoded = image_data.split(",", 1)
+                    ext = mimetypes.guess_extension(header.split(';')[0].split(':')[1]) or '.png'
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                        tmp.write(base64.b64decode(encoded))
+                        temp_path = tmp.name
+                    try:
+                        uploaded_filename = await _upload_media(temp_path, request)
+                        print(f"[OneAPI] 图片上传成功: {uploaded_filename}")
+                    finally:
+                        os.unlink(temp_path)
+            except Exception as e:
+                print(f"[OneAPI] Error processing image: {str(e)}")
+                return web.json_response({"error": f"Failed to process image: {str(e)}"}, status=500)
+
+        # 4. Process with execute_workflow internal logic
         # Extract aspectRatio and set width/height
         generation_config = data.get('generationConfig', {})
         image_config = generation_config.get('imageConfig', {})
@@ -243,6 +307,11 @@ async def generate_content(request):
             "height": height,
             "seed": random.randint(1, 1125899906842624)
         }
+        
+        # 如果有上传的图片，添加到参数中
+        if uploaded_filename:
+            params["image"] = uploaded_filename
+        
         workflow = await _apply_params_to_workflow(workflow, params, request)
         output_id_2_var = await _extract_output_nodes(workflow)
         client_id = str(uuid.uuid4())
@@ -253,7 +322,7 @@ async def generate_content(request):
         if execution_result.get('status') != 'completed':
             return web.json_response({"error": f"Execution failed: {execution_result.get('status')}"}, status=500)
             
-        # 4. Construct Gemini response
+        # 5. Construct Gemini response
         parts = []
         parts.append({"text": f"Successfully generated images for: {prompt_text}"})
         
@@ -285,6 +354,21 @@ async def generate_content(request):
     except Exception as e:
         print(f"Error in generateContent: {str(e)}, {traceback.format_exc()}")
         return web.json_response({"error": str(e)}, status=500)
+
+
+
+async def _fetch_image_base64(url):
+    """Fetch image and return base64 encoded string"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.read()
+                    return base64.b64encode(data).decode('utf-8')
+    except Exception as e:
+        print(f"Failed to fetch image for base64: {e}")
+    return None
+
 
 @routes.post('/v1/chat/completions')
 async def chat_completions(request):
@@ -318,7 +402,7 @@ async def chat_completions(request):
         content = last_message.get('content', '')
         
         prompt_texts = []
-        image_data = None
+        image_data_list = []  # 改为列表，支持多张图片
         
         if isinstance(content, str):
             prompt_texts.append(content)
@@ -331,25 +415,28 @@ async def chat_completions(request):
                 elif p_type == 'image_url' or 'image_url' in part:
                     image_info = part.get('image_url', {})
                     if isinstance(image_info, str):
-                        image_data = image_info
+                        image_data_list.append(image_info)
                     else:
-                        image_data = image_info.get('url', '')
+                        url = image_info.get('url', '')
+                        if url:
+                            image_data_list.append(url)
         
         prompt_text = "\n".join(prompt_texts).strip()
         
         print(f"[OneAPI] Processing Video Request:")
         print(f"  - Model: {model}")
-        print(f"  - Prompt Length: {len(prompt_text)}")
-        if image_data:
-            img_disp = image_data[:50] + "..." if len(image_data) > 50 else image_data
-            print(f"  - Image Data Type: {'URL' if image_data.startswith('http') else 'Base64/Local'}")
-            print(f"  - Image Data Preview: {img_disp}")
+        print(f"  - Prompt: {prompt_text[:100]}..." if len(prompt_text) > 100 else f"  - Prompt: {prompt_text}")
+        print(f"  - Images Count: {len(image_data_list)}")
+        for idx, img_data in enumerate(image_data_list):
+            img_disp = img_data[:50] + "..." if len(img_data) > 50 else img_data
+            print(f"  - Image {idx+1} Type: {'URL' if img_data.startswith('http') else 'Base64/Local'}")
+            print(f"  - Image {idx+1} Preview: {img_disp}")
 
         if not prompt_text:
             return web.json_response({"error": "Prompt text is empty"}, status=400)
         
-        if not image_data:
-            return web.json_response({"error": "Image data is required for video generation"}, status=400)
+        if not image_data_list:
+            return web.json_response({"error": "At least one image is required for video generation"}, status=400)
         
         # 2. 确定工作流
         workflow_name = model
@@ -366,39 +453,68 @@ async def chat_completions(request):
             except Exception as e:
                 return web.json_response({"error": f"Workflow '{workflow_name}' or 'LTX2-SWZ' not found. {str(e)}"}, status=404)
         
-        # 3. 处理图片数据
-        uploaded_filename = None
-        if image_data.startswith('data:image'):
-            try:
-                header, encoded = image_data.split(',', 1)
-                image_bytes = base64.b64decode(encoded)
-                mime_type = header.split(';')[0].split(':')[1]
-                ext = mimetypes.guess_extension(mime_type) or '.png'
-                
-                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                    tmp.write(image_bytes)
-                    temp_path = tmp.name
-                
+        # 3. 处理图片数据 - 支持多张图片
+        uploaded_filenames = []
+        for image_data in image_data_list:
+            uploaded_filename = None
+            if image_data.startswith('data:image'):
                 try:
-                    uploaded_filename = await _upload_media(temp_path, request)
-                finally:
-                    os.unlink(temp_path)
-            except Exception as e:
-                return web.json_response({"error": f"Failed to process base64 image: {str(e)}"}, status=400)
-        elif image_data.startswith('http'):
-            try:
-                uploaded_filename = await _upload_media_from_source(image_data, request)
-            except Exception as e:
-                return web.json_response({"error": f"Failed to upload image from URL: {str(e)}"}, status=400)
-        else:
-            uploaded_filename = image_data
+                    header, encoded = image_data.split(',', 1)
+                    image_bytes = base64.b64decode(encoded)
+                    mime_type = header.split(';')[0].split(':')[1]
+                    ext = mimetypes.guess_extension(mime_type) or '.png'
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                        tmp.write(image_bytes)
+                        temp_path = tmp.name
+                    
+                    try:
+                        uploaded_filename = await _upload_media(temp_path, request)
+                    finally:
+                        os.unlink(temp_path)
+                except Exception as e:
+                    return web.json_response({"error": f"Failed to process base64 image: {str(e)}"}, status=400)
+            elif image_data.startswith('http'):
+                try:
+                    uploaded_filename = await _upload_media_from_source(image_data, request)
+                except Exception as e:
+                    return web.json_response({"error": f"Failed to upload image from URL: {str(e)}"}, status=400)
+            else:
+                uploaded_filename = image_data
+            
+            if uploaded_filename:
+                uploaded_filenames.append(uploaded_filename)
+        
+        print(f"[OneAPI] Uploaded {len(uploaded_filenames)} images: {uploaded_filenames}")
         
         # 4. 设置参数并提交
+        # 注意：工作流中使用 $param.xxx 格式，所以参数需要嵌套在 param 对象下
         params = {
-            "text": prompt_text,
-            "image": uploaded_filename,
-            "seed": random.randint(1, 1125899906842624)
+            "param": {
+                "text": prompt_text,
+                "seed": random.randint(1, 1125899906842624)
+            }
         }
+        
+        # 设置图片参数
+        if len(uploaded_filenames) >= 2:
+            # 有两张或更多图片：第一张作为首帧，第二张作为尾帧
+            params["param"]["image"] = uploaded_filenames[0]
+            params["param"]["image2"] = uploaded_filenames[1]
+            print(f"[OneAPI] Using 2 images: image={uploaded_filenames[0]}, image2={uploaded_filenames[1]}")
+        elif len(uploaded_filenames) == 1:
+            # 只有一张图片：同时用作首帧和尾帧
+            params["param"]["image"] = uploaded_filenames[0]
+            params["param"]["image2"] = uploaded_filenames[0]
+            print(f"[OneAPI] Using 1 image for both: image={uploaded_filenames[0]}, image2={uploaded_filenames[0]}")
+        else:
+            # 没有上传图片：使用默认值或报错
+            print(f"[OneAPI] ❌ No images uploaded!")
+            return web.json_response({
+                "error": "No images provided in request"
+            }, status=400)
+        
+        print(f"[OneAPI] Final params structure: {params}")
         
         workflow = await _apply_params_to_workflow(workflow, params, request)
         output_id_2_var = await _extract_output_nodes(workflow)
@@ -471,14 +587,22 @@ async def _apply_params_to_workflow(workflow, params, request=None):
     """
     workflow = copy.deepcopy(workflow)
     
+    print(f"[DEBUG] _apply_params_to_workflow called with {len(workflow)} nodes")
+    print(f"[DEBUG] params: {params}")
+    
     for node_id, node_data in workflow.items():
         # Skip nodes that don't meet criteria
         if not _is_valid_node(node_data):
+            print(f"[DEBUG] Skipping invalid node {node_id}")
             continue
+        
+        title = node_data.get("_meta", {}).get("title", "")
+        print(f"[DEBUG] Processing node {node_id}, title: {title}")
             
         # Process parameter markers in the node
         await _process_node_params(node_data, params, request)
     
+    print(f"[DEBUG] _apply_params_to_workflow completed")
     return workflow
 
 def _is_valid_node(node_data):
@@ -488,18 +612,114 @@ def _is_valid_node(node_data):
             "title" in node_data["_meta"])
 
 async def _process_node_params(node_data, params, request=None):
-    """Process parameter markers in the node"""
-    title = node_data["_meta"]["title"]
+    """Process parameter markers in the node's inputs and title"""
+    if "inputs" not in node_data:
+        return
     
-    # Split title and look for parameter markers
-    parts = title.split(',')
-    for part in parts:
-        part = part.strip()
-        if not part.startswith('$'):
+    inputs = node_data["inputs"]
+    node_class_type = node_data.get('class_type', '')
+    
+    # ==========================================
+    # 方式1：遍历 inputs，查找以 $ 开头的值
+    # ==========================================
+    for input_name, input_value in list(inputs.items()):
+        if not isinstance(input_value, str):
             continue
+        
+        new_value = await _resolve_placeholder(input_value, params, node_class_type, node_data, input_name, request)
+        if new_value is not None:
+            inputs[input_name] = new_value
+    
+    # ==========================================
+    # 方式2：处理 title 中的占位符（旧格式兼容）
+    # ==========================================
+    if "_meta" in node_data and "title" in node_data["_meta"]:
+        title = node_data["_meta"]["title"]
+        parts = title.split(',')
+        for part in parts:
+            part = part.strip()
+            if not part.startswith('$'):
+                continue
             
-        # Process parameter marker
-        await _process_param_marker(node_data, part[1:], params, request)
+            # 解析 $xxx.yyy 格式
+            if '.' not in part:
+                continue
+                
+            var_name, input_field = part[1:].split('.', 1)
+            
+            # 从 params 中获取值
+            param_value = None
+            if var_name in params:
+                param_container = params[var_name]
+                if isinstance(param_container, dict) and input_field in param_container:
+                    param_value = param_container[input_field]
+                elif not isinstance(param_container, dict):
+                    param_value = param_container
+            
+            if param_value is not None:
+                print(f"[DEBUG] Title marker ${var_name}.{input_field} -> {param_value}")
+                # 设置到 input_field 对应的输入
+                if node_class_type in MEDIA_UPLOAD_NODE_TYPES:
+                    await _handle_media_upload(node_data, input_field, param_value, request)
+                else:
+                    inputs[input_field] = param_value
+
+async def _resolve_placeholder(input_value, params, node_class_type, node_data, input_name, request):
+    """Resolve a placeholder value and return the new value, or None if not a placeholder"""
+    
+    # 处理 $param.xxx 格式
+    if input_value.startswith('$param.'):
+        param_key = input_value[7:]  # 去掉 '$param.' 前缀
+        print(f"[DEBUG] Found $param.{param_key} in input '{input_name}'")
+        
+        if "param" in params and param_key in params["param"]:
+            new_value = params["param"][param_key]
+            print(f"[DEBUG] Replacing with: {new_value}")
+            
+            if node_class_type in MEDIA_UPLOAD_NODE_TYPES:
+                await _handle_media_upload(node_data, input_name, new_value, request)
+                return None  # _handle_media_upload 已经设置了值
+            return new_value
+        else:
+            print(f"[DEBUG] ❌ param key '{param_key}' not found in params['param']")
+    
+    # 处理 $seed.xxx 格式
+    elif input_value.startswith('$seed.'):
+        seed_key = input_value[6:]
+        print(f"[DEBUG] Found $seed.{seed_key} in input '{input_name}'")
+        
+        if "seed" in params:
+            print(f"[DEBUG] Replacing with seed: {params['seed']}")
+            return params["seed"]
+        elif "param" in params and "seed" in params["param"]:
+            print(f"[DEBUG] Replacing with param.seed: {params['param']['seed']}")
+            return params["param"]["seed"]
+        else:
+            print(f"[DEBUG] ❌ seed not found in params")
+    
+    # 处理 $image.xxx 格式
+    elif input_value.startswith('$image.'):
+        image_key = input_value[7:]
+        print(f"[DEBUG] Found $image.{image_key} in input '{input_name}'")
+        
+        if "image" in params:
+            new_value = params["image"]
+            print(f"[DEBUG] Replacing with image: {new_value}")
+            if node_class_type in MEDIA_UPLOAD_NODE_TYPES:
+                await _handle_media_upload(node_data, input_name, new_value, request)
+                return None
+            return new_value
+        elif "param" in params and "image" in params["param"]:
+            new_value = params["param"]["image"]
+            print(f"[DEBUG] Replacing with param.image: {new_value}")
+            if node_class_type in MEDIA_UPLOAD_NODE_TYPES:
+                await _handle_media_upload(node_data, input_name, new_value, request)
+                return None
+            return new_value
+        else:
+            print(f"[DEBUG] ❌ image not found in params")
+    
+    return None
 
 async def _extract_output_nodes(workflow):
     """
@@ -565,12 +785,32 @@ async def _process_param_marker(node_data, var_spec, params, request=None):
     # Parse parameter name and field name
     var_name, input_field = var_spec.split('.', 1)
     
+    print(f"[DEBUG] Processing marker: ${var_spec}")
+    print(f"[DEBUG]   var_name={var_name}, input_field={input_field}")
+    print(f"[DEBUG]   Available params keys: {list(params.keys())}")
+    
     # Check if parameter exists
     if var_name not in params:
+        print(f"[DEBUG]   ❌ var_name '{var_name}' not found in params")
         return
         
     # Get parameter value
-    param_value = params[var_name]
+    # 支持嵌套结构：如果 params[var_name] 是字典，则从中提取 input_field
+    param_container = params[var_name]
+    print(f"[DEBUG]   param_container type: {type(param_container)}")
+    
+    if isinstance(param_container, dict):
+        # 嵌套结构：params["param"]["image"]
+        print(f"[DEBUG]   param_container keys: {list(param_container.keys())}")
+        if input_field not in param_container:
+            print(f"[DEBUG]   ❌ input_field '{input_field}' not found in param_container")
+            return
+        param_value = param_container[input_field]
+        print(f"[DEBUG]   ✅ Found param_value: {param_value}")
+    else:
+        # 扁平结构（向后兼容）
+        param_value = param_container
+        print(f"[DEBUG]   ✅ Using param_container as value: {param_value}")
     
     # Check if this node type requires special media upload handling
     node_class_type = node_data.get('class_type')

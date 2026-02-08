@@ -48,7 +48,7 @@ ComfyUI-OneAPI-Swagger 是一个为 ComfyUI 提供简单REST API接口的插件�
 
 安装完成后，您可以访问交互式 API 文档和测试界面：
 
-**👉 访问本地服务：[http://localhost:8118/oneapi/docs](http://localhost:8118/oneapi/docs)**
+**👉 访问本地服务：[<COMFYUI_URL>/oneapi/docs](<COMFYUI_URL>/oneapi/docs)**
 
 Swagger UI 提供了：
 - 📖 **完整的 API 列表**（含 OpenAPI, Gemini, Execute 等所有端点）
@@ -59,7 +59,7 @@ Swagger UI 提供了：
 ### 🚀 仅需一个请求即可执行工作流
 
 ```bash
-curl -X POST "http://localhost:8118/oneapi/v1/execute" \
+curl -X POST "<COMFYUI_URL>/oneapi/v1/execute" \
   -H "Content-Type: application/json" \
   -d '{
     "workflow": {...}  # 支持JSON对象、本地文件名或URL
@@ -144,7 +144,7 @@ response = client.generate_content("a cool steampunk robot")
 通过 `/v1/chat/completions` 端点，你可以直接将 ComfyUI 包装为视频/图像生成服务：
 
 ```bash
-curl http://localhost:8118/v1/chat/completions \
+curl <COMFYUI_URL>/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "ltx2_landscape",
@@ -162,6 +162,11 @@ curl http://localhost:8118/v1/chat/completions \
 响应内容将包含生成的视频或图片链接。
 
 > **提示**：该接口不仅用于视频，也支持所有单图生成工作流。
+
+---
+
+> 💡 **访问说明**：本插件支持动态端口。下文示例中的 `<COMFYUI_URL>` 指代您访问 ComfyUI 的基准地址（例如 `http://192.168.1.100:8188` 或 `http://localhost:4020`）。
+> 您可以随时通过浏览器访问 `<COMFYUI_URL>/oneapi/docs` 查看实时更新的交互式 API 文档。
 
 ---
 
@@ -259,7 +264,7 @@ POST /oneapi/v1/execute
 使用 `/v1/chat/completions` 端点，通过简单的文本提示和可选的图像输入，即可生成视频。
 
 ```bash
-curl http://localhost:8118/v1/chat/completions \
+curl <COMFYUI_URL>/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "ltx2_landscape", # 或 ltx2_portrait
@@ -279,7 +284,7 @@ curl http://localhost:8118/v1/chat/completions \
 ### 📝 文生图示例
 
 ```bash
-curl -X POST "http://localhost:8118/oneapi/v1/execute" \
+curl -X POST "<COMFYUI_URL>/oneapi/v1/execute" \
   -H "Content-Type: application/json" \
   -d '{
     "workflow": "$(cat workflows/example_workflow.json)",  # 支持JSON对象、本地文件名或URL
@@ -292,7 +297,7 @@ curl -X POST "http://localhost:8118/oneapi/v1/execute" \
 ### 🖼️ 图生图示例
 
 ```bash
-curl -X POST "http://localhost:8118/oneapi/v1/execute" \
+curl -X POST "<COMFYUI_URL>/oneapi/v1/execute" \
   -H "Content-Type: application/json" \
   -d '{
     "workflow": "$(cat workflows/example_img2img_workflow.json)",  # 支持JSON对象、本地文件名或URL

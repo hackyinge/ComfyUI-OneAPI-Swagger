@@ -295,7 +295,6 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                     }
                 }
             }
-        }
         },
         "/v1/chat/completions": {
             "post": {
