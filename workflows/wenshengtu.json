@@ -9,7 +9,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP文本编码,$prompt.text"
     }
   },
   "8": {
@@ -124,7 +124,7 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "随机噪波"
+      "title": "随机噪波,$seed.noise_seed"
     }
   },
   "26": {
@@ -148,7 +148,7 @@
     },
     "class_type": "EmptySD3LatentImage",
     "_meta": {
-      "title": "空Latent图像（SD3）"
+      "title": "空Latent图像（SD3）,$width.width,$height.height"
     }
   },
   "30": {
@@ -164,7 +164,7 @@
     },
     "class_type": "ModelSamplingFlux",
     "_meta": {
-      "title": "采样算法（Flux）"
+      "title": "采样算法（Flux）,$width.width,$height.height"
     }
   },
   "44": {

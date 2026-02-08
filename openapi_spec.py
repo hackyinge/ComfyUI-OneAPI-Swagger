@@ -71,10 +71,6 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
         {
             "name": "gemini",
             "description": "Gemini 兼容接口 (Google AI SDK 适配)"
-        },
-        {
-            "name": "openai",
-            "description": "OpenAI 兼容接口 (ChatGPT 适配)"
         }
     ],
     "paths": {
@@ -295,36 +291,6 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                     }
                 }
             }
-        },
-        "/v1/chat/completions": {
-            "post": {
-                "tags": ["openai"],
-                "summary": "OpenAI 兼容对话生成",
-                "description": "提供与 ChatGPT API 兼容的接口。将 messages 解析为 prompt，model 映射为工作流文件名。",
-                "operationId": "openaiChatCompletions",
-                "requestBody": {
-                    "required": True,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OpenAIChatCompletionsRequest"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "成功生成响应",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/OpenAIChatCompletionsResponse"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     },
     "components": {
@@ -518,6 +484,22 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                                 }
                             }
                         }
+                    },
+                    "generationConfig": {
+                        "type": "object",
+                        "properties": {
+                            "imageConfig": {
+                                "type": "object",
+                                "properties": {
+                                    "aspectRatio": {
+                                        "type": "string",
+                                        "enum": ["16:9", "9:16"],
+                                        "default": "16:9",
+                                        "description": "图像比例，默认 16:9 (1280x720)，支持 9:16 (720x1280)"
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -557,54 +539,6 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                     }
                 }
             },
-            "OpenAIChatCompletionsRequest": {
-                "type": "object",
-                "required": ["model", "messages"],
-                "properties": {
-                    "model": {"type": "string", "example": "wenshengtu_api"},
-                    "messages": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "role": {"type": "string", "enum": ["user", "assistant", "system"]},
-                                "content": {
-                                    "oneOf": [
-                                        {"type": "string"},
-                                        {"type": "array", "items": {"type": "object"}}
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "OpenAIChatCompletionsResponse": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"},
-                    "object": {"type": "string"},
-                    "created": {"type": "integer"},
-                    "model": {"type": "string"},
-                    "choices": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "index": {"type": "integer"},
-                                "message": {
-                                    "type": "object",
-                                    "properties": {
-                                        "role": {"type": "string"},
-                                        "content": {"type": "string"}
-                                    }
-                                },
-                                "finish_reason": {"type": "string"}
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }

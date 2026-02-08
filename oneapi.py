@@ -11,6 +11,7 @@ import tempfile
 import mimetypes
 from urllib.parse import urlparse
 import base64
+import random
 from aiohttp import web
 from server import PromptServer
 import folder_paths
@@ -126,6 +127,9 @@ async def execute_workflow(request):
         # Extract parameters
         workflow = data.get('workflow')
         params = data.get('params', {})
+        if 'seed' not in params:
+            params['seed'] = random.randint(1, 1125899906842624)
+
         wait_for_result = data.get('wait_for_result', True)
         timeout = data.get('timeout', None)
         prompt_ext_params = data.get('prompt_ext_params', {})
@@ -224,7 +228,21 @@ async def generate_content(request):
                 return web.json_response({"error": f"Workflow '{workflow_name}' not found. {msg}"}, status=404)
 
         # 3. Process with execute_workflow internal logic
-        params = {"prompt": prompt_text}
+        # Extract aspectRatio and set width/height
+        generation_config = data.get('generationConfig', {})
+        image_config = generation_config.get('imageConfig', {})
+        aspect_ratio = image_config.get('aspectRatio', '16:9')
+        
+        width, height = 1280, 720
+        if aspect_ratio == "9:16":
+            width, height = 720, 1280
+            
+        params = {
+            "prompt": prompt_text,
+            "width": width,
+            "height": height,
+            "seed": random.randint(1, 1125899906842624)
+        }
         workflow = await _apply_params_to_workflow(workflow, params, request)
         output_id_2_var = await _extract_output_nodes(workflow)
         client_id = str(uuid.uuid4())
@@ -268,98 +286,7 @@ async def generate_content(request):
         print(f"Error in generateContent: {str(e)}, {traceback.format_exc()}")
         return web.json_response({"error": str(e)}, status=500)
 
-@routes.post('/oneapi/v1/chat/completions')
-@routes.post('/v1/chat/completions')
-async def chat_completions(request):
-    """
-    Open API compatible with OpenAI chat completions format
-    """
-    try:
-        data = await request.json()
-        
-        # 1. Extract model and prompt from OpenAI format
-        model_name = data.get('model', 'default')
-        messages = data.get('messages', [])
-        
-        if not messages:
-            return web.json_response({"error": "Messages list is empty"}, status=400)
-            
-        # Get the last user message text
-        prompt_text = ""
-        for msg in reversed(messages):
-            if msg.get('role') == 'user':
-                content = msg.get('content')
-                if isinstance(content, str):
-                    prompt_text = content
-                elif isinstance(content, list):
-                    # Handle multi-modal format (text + images)
-                    for part in content:
-                        if part.get('type') == 'text':
-                            prompt_text = part.get('text', '')
-                            break
-                break
-        
-        if not prompt_text:
-            return web.json_response({"error": "No user prompt found in messages"}, status=400)
-            
-        # 2. Load workflow
-        try:
-            workflow = _load_workflow_from_local(model_name, request)
-        except Exception as e:
-            try:
-                workflow = _load_workflow_from_local('default_txt2img', request)
-            except:
-                return web.json_response({"error": f"Workflow '{model_name}' not found."}, status=404)
 
-        # 3. Process
-        params = {"prompt": prompt_text}
-        workflow = await _apply_params_to_workflow(workflow, params, request)
-        output_id_2_var = await _extract_output_nodes(workflow)
-        client_id = str(uuid.uuid4())
-        
-        prompt_id = await _queue_prompt(workflow, client_id, {}, request)
-        execution_result = await _wait_for_results(prompt_id, 300, request, output_id_2_var)
-        
-        if execution_result.get('status') != 'completed':
-            return web.json_response({"error": "Execution failed"}, status=500)
-            
-        # 4. Construct OpenAI response
-        # OpenAI usually returns text. Since this is an image gen tool, we provide markdown or base64.
-        # Here we'll return a markdown-like response with image info.
-        images = execution_result.get('images', [])
-        image_markdown = ""
-        for i, img_url in enumerate(images):
-            image_markdown += f"\n![Image {i+1}]({img_url})"
-            
-        content_res = f"Generated {len(images)} images based on your prompt: '{prompt_text}'.{image_markdown}"
-        
-        response_data = {
-            "id": f"chatcmpl-{uuid.uuid4()}",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": model_name,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": content_res
-                    },
-                    "finish_reason": "stop"
-                }
-            ],
-            "usage": {
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0
-            }
-        }
-        
-        return web.json_response(response_data)
-        
-    except Exception as e:
-        print(f"Error in chatCompletions: {str(e)}, {traceback.format_exc()}")
-        return web.json_response({"error": str(e)}, status=500)
 
 async def _fetch_image_base64(url):
     """Fetch image and return base64 encoded string"""
