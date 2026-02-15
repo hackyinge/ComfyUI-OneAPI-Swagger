@@ -370,20 +370,22 @@ async def _fetch_image_base64(url):
     return None
 
 
+@routes.post('/oneapi/v1/chat/completions')
 @routes.post('/v1/chat/completions')
 async def chat_completions(request):
     """
-    OpenAI 兼容接口 - 支持图生视频
+    OpenAI 兼容接口 - 支持图生视频 / 多图工作流
     
     请求格式:
     {
-        "model": "LTX2-SWZ",
+        "model": "LTX-more-image-3-3",
         "messages": [
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "视频描述文本"},
-                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+                    {"type": "text", "text": "描述"},
+                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}},
+                    {"type": "image_url", "image_url": {"url": "..."}}
                 ]
             }
         ]
@@ -391,69 +393,53 @@ async def chat_completions(request):
     """
     try:
         data = await request.json()
-        model = data.get('model', 'LTX2-SWZ')
+        model = data.get('model', 'LTX-more-image-2-3')
         messages = data.get('messages', [])
         
         if not messages:
             return web.json_response({"error": "Messages are required"}, status=400)
         
-        # 1. 提取内容 (从最后一条消息中提取)
-        last_message = messages[-1]
-        content = last_message.get('content', '')
-        
+        # 1. 提取提示词和所有图片 (支持多条消息合并)
         prompt_texts = []
-        image_data_list = []  # 改为列表，支持多张图片
+        image_data_list = []
         
-        if isinstance(content, str):
-            prompt_texts.append(content)
-        elif isinstance(content, list):
-            for part in content:
-                p_type = part.get('type', '')
-                if p_type == 'text' or 'text' in part:
-                    txt = part.get('text', '')
-                    if txt: prompt_texts.append(txt)
-                elif p_type == 'image_url' or 'image_url' in part:
-                    image_info = part.get('image_url', {})
-                    if isinstance(image_info, str):
-                        image_data_list.append(image_info)
-                    else:
-                        url = image_info.get('url', '')
-                        if url:
-                            image_data_list.append(url)
+        for message in messages:
+            content = message.get('content', '')
+            if isinstance(content, str):
+                prompt_texts.append(content)
+            elif isinstance(content, list):
+                for part in content:
+                    p_type = part.get('type', '')
+                    if p_type == 'text' or 'text' in part:
+                        txt = part.get('text', '')
+                        if txt: prompt_texts.append(txt)
+                    elif p_type == 'image_url' or 'image_url' in part:
+                        image_info = part.get('image_url', {})
+                        if isinstance(image_info, str):
+                            image_data_list.append(image_info)
+                        else:
+                            url = image_info.get('url', '')
+                            if url: image_data_list.append(url)
         
         prompt_text = "\n".join(prompt_texts).strip()
         
-        print(f"[OneAPI] Processing Video Request:")
-        print(f"  - Model: {model}")
-        print(f"  - Prompt: {prompt_text[:100]}..." if len(prompt_text) > 100 else f"  - Prompt: {prompt_text}")
-        print(f"  - Images Count: {len(image_data_list)}")
-        for idx, img_data in enumerate(image_data_list):
-            img_disp = img_data[:50] + "..." if len(img_data) > 50 else img_data
-            print(f"  - Image {idx+1} Type: {'URL' if img_data.startswith('http') else 'Base64/Local'}")
-            print(f"  - Image {idx+1} Preview: {img_disp}")
+        print(f"[OneAPI] Processing OpenAI format request: model={model}, images={len(image_data_list)}")
 
         if not prompt_text:
             return web.json_response({"error": "Prompt text is empty"}, status=400)
         
-        if not image_data_list:
-            return web.json_response({"error": "At least one image is required for video generation"}, status=400)
-        
-        # 2. 确定工作流
-        workflow_name = model
-        if ':' in workflow_name:
-            workflow_name = workflow_name.split(':')[0]
-        
-        # 优先使用 model 参数指定的工作流文件名称
+        # 2. 确定并加载工作流
+        workflow_name = model.split(':')[0] if ':' in model else model
         try:
             workflow = _load_workflow_from_local(workflow_name, request)
-        except Exception:
-            # 如果找不到, 尝试使用默认的 LTX2-SWZ 工作流作为 fallback
+        except Exception as e:
+            # Fallback to LTX2-SWZ if model name not found
             try:
                 workflow = _load_workflow_from_local('LTX2-SWZ', request)
-            except Exception as e:
-                return web.json_response({"error": f"Workflow '{workflow_name}' or 'LTX2-SWZ' not found. {str(e)}"}, status=404)
+            except:
+                return web.json_response({"error": f"Workflow '{workflow_name}' not found: {str(e)}"}, status=404)
         
-        # 3. 处理图片数据 - 支持多张图片
+        # 3. 处理所有上传的图片
         uploaded_filenames = []
         for image_data in image_data_list:
             uploaded_filename = None
@@ -463,32 +449,27 @@ async def chat_completions(request):
                     image_bytes = base64.b64decode(encoded)
                     mime_type = header.split(';')[0].split(':')[1]
                     ext = mimetypes.guess_extension(mime_type) or '.png'
-                    
                     with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                         tmp.write(image_bytes)
                         temp_path = tmp.name
-                    
                     try:
                         uploaded_filename = await _upload_media(temp_path, request)
                     finally:
                         os.unlink(temp_path)
                 except Exception as e:
-                    return web.json_response({"error": f"Failed to process base64 image: {str(e)}"}, status=400)
+                    print(f"Error processing image: {e}")
             elif image_data.startswith('http'):
                 try:
                     uploaded_filename = await _upload_media_from_source(image_data, request)
                 except Exception as e:
-                    return web.json_response({"error": f"Failed to upload image from URL: {str(e)}"}, status=400)
+                    print(f"Error downloading image: {e}")
             else:
                 uploaded_filename = image_data
             
             if uploaded_filename:
                 uploaded_filenames.append(uploaded_filename)
         
-        print(f"[OneAPI] Uploaded {len(uploaded_filenames)} images: {uploaded_filenames}")
-        
-        # 4. 设置参数并提交
-        # 注意：工作流中使用 $param.xxx 格式，所以参数需要嵌套在 param 对象下
+        # 4. 构建参数映射 ($param.text, $param.image1, $param.image2 ...)
         params = {
             "param": {
                 "text": prompt_text,
@@ -496,67 +477,53 @@ async def chat_completions(request):
             }
         }
         
-        # 设置图片参数
-        if len(uploaded_filenames) >= 2:
-            # 有两张或更多图片：第一张作为首帧，第二张作为尾帧
+        # 特殊处理：如果是只有一张图上传，需要同时填入 image1 和 image2 (首尾帧)
+        if len(uploaded_filenames) == 1:
             params["param"]["image"] = uploaded_filenames[0]
-            params["param"]["image2"] = uploaded_filenames[1]
-            print(f"[OneAPI] Using 2 images: image={uploaded_filenames[0]}, image2={uploaded_filenames[1]}")
-        elif len(uploaded_filenames) == 1:
-            # 只有一张图片：同时用作首帧和尾帧
-            params["param"]["image"] = uploaded_filenames[0]
+            params["param"]["image1"] = uploaded_filenames[0]
             params["param"]["image2"] = uploaded_filenames[0]
-            print(f"[OneAPI] Using 1 image for both: image={uploaded_filenames[0]}, image2={uploaded_filenames[0]}")
         else:
-            # 没有上传图片：使用默认值或报错
-            print(f"[OneAPI] ❌ No images uploaded!")
-            return web.json_response({
-                "error": "No images provided in request"
-            }, status=400)
+            # 正常分配所有图片到对应的 image1, image2... 插槽
+            for i, fname in enumerate(uploaded_filenames):
+                p_key = f"image{i+1}"
+                params["param"][p_key] = fname
+                if i == 0: params["param"]["image"] = fname # 兼容 $param.image
+
+        print(f"[OneAPI] Params applied: {list(params['param'].keys())}")
         
-        print(f"[OneAPI] Final params structure: {params}")
-        
+        # 5. 执行工作流
         workflow = await _apply_params_to_workflow(workflow, params, request)
         output_id_2_var = await _extract_output_nodes(workflow)
         client_id = str(uuid.uuid4())
         
         prompt_id = await _queue_prompt(workflow, client_id, {}, request)
-        
-        # 5. 等待结果
         execution_result = await _wait_for_results(prompt_id, 600, request, output_id_2_var)
         
         if execution_result.get('status') != 'completed':
-            error_msg = execution_result.get('error', execution_result.get('status', 'Unknown error'))
-            return web.json_response({"error": f"Execution failed: {error_msg}"}, status=500)
+            return web.json_response({"error": f"Execution failed: {execution_result.get('status')}"}, status=500)
         
-        # 6. 构建 OpenAI 格式响应
+        # 6. 构建响应
         videos = execution_result.get('videos', [])
-        response_content = f"Successfully generated video for: {prompt_text}"
-        if videos:
-            response_content += f"\n\nGenerated Video URL: {videos[0]}"
+        audios = execution_result.get('audios', [])
+        images = execution_result.get('images', [])
+        
+        # 构建文本内容
+        response_content = f"Generation complete."
+        if videos: response_content += f"\nVideo: {videos[0]}"
+        if audios: response_content += f"\nAudio: {audios[0]}"
         
         response_data = {
             "id": f"chatcmpl-{uuid.uuid4()}",
             "object": "chat.completion",
             "created": int(time.time()),
             "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": response_content
-                    },
-                    "finish_reason": "stop"
-                }
-            ],
-            "usage": {
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0
-            }
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": response_content},
+                "finish_reason": "stop"
+            }],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         }
-        
         return web.json_response(response_data)
         
     except Exception as e:

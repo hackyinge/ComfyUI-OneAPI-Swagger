@@ -1,0 +1,550 @@
+{
+  "14": {
+    "inputs": {
+      "model_name": "ltx-2-spatial-upscaler-x2-1.0.safetensors"
+    },
+    "class_type": "LatentUpscaleModelLoader",
+    "_meta": {
+      "title": "加载Latent放大模型"
+    }
+  },
+  "15": {
+    "inputs": {
+      "frame_rate": [
+        "20",
+        0
+      ],
+      "positive": [
+        "71",
+        0
+      ],
+      "negative": [
+        "78",
+        0
+      ]
+    },
+    "class_type": "LTXVConditioning",
+    "_meta": {
+      "title": "LTXV条件"
+    }
+  },
+  "30": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "31": {
+    "inputs": {
+      "sigmas": "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "自定义Sigmas"
+    }
+  },
+  "32": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "90",
+        0
+      ],
+      "positive": [
+        "86",
+        0
+      ],
+      "negative": [
+        "86",
+        1
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器"
+    }
+  },
+  "33": {
+    "inputs": {
+      "unet_name": "ltx-2-19b-distilled-fp8_transformer_only.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "34": {
+    "inputs": {
+      "positive": [
+        "86",
+        0
+      ],
+      "negative": [
+        "86",
+        1
+      ],
+      "latent": [
+        "64",
+        0
+      ]
+    },
+    "class_type": "LTXVCropGuides",
+    "_meta": {
+      "title": "LTXV裁剪指导"
+    }
+  },
+  "35": {
+    "inputs": {
+      "image": [
+        "93",
+        0
+      ]
+    },
+    "class_type": "GetImageSizeAndCount",
+    "_meta": {
+      "title": "Get Image Size & Count"
+    }
+  },
+  "37": {
+    "inputs": {
+      "noise_seed": 498800969530780
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波,$seed.seed"
+    }
+  },
+  "48": {
+    "inputs": {
+      "anything": [
+        "53",
+        0
+      ],
+      "anything24": [
+        "14",
+        0
+      ],
+      "anything26": [
+        "52",
+        0
+      ]
+    },
+    "class_type": "Anything Everywhere",
+    "_meta": {
+      "title": "全局输入"
+    }
+  },
+  "49": {
+    "inputs": {
+      "anything": [
+        "56",
+        0
+      ]
+    },
+    "class_type": "Anything Everywhere",
+    "_meta": {
+      "title": "全局输入"
+    }
+  },
+  "52": {
+    "inputs": {
+      "model": "TencentGameMate/chinese-wav2vec2-base",
+      "base_precision": "fp16",
+      "load_device": "main_device"
+    },
+    "class_type": "DownloadAndLoadWav2VecModel",
+    "_meta": {
+      "title": "(Down)load Wav2Vec Model"
+    }
+  },
+  "53": {
+    "inputs": {
+      "clip_name1": "gemma_3_12B_it_fp4_mixed.safetensors",
+      "clip_name2": "ltx-2-19b-embeddings_connector_bf16.safetensors",
+      "type": "ltxv",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "双CLIP加载器"
+    }
+  },
+  "56": {
+    "inputs": {
+      "vae_name": "LTX2_video_vae_bf16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "57": {
+    "inputs": {
+      "Number": "24"
+    },
+    "class_type": "Int",
+    "_meta": {
+      "title": "Frame Rate"
+    }
+  },
+  "60": {
+    "inputs": {
+      "vae_name": "LTX2_audio_vae_bf16.safetensors",
+      "device": "main_device",
+      "weight_dtype": "bf16"
+    },
+    "class_type": "VAELoaderKJ",
+    "_meta": {
+      "title": "VAELoader KJ"
+    }
+  },
+  "63": {
+    "inputs": {
+      "noise": [
+        "37",
+        0
+      ],
+      "guider": [
+        "32",
+        0
+      ],
+      "sampler": [
+        "30",
+        0
+      ],
+      "sigmas": [
+        "31",
+        0
+      ],
+      "latent_image": [
+        "69",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "64": {
+    "inputs": {
+      "av_latent": [
+        "63",
+        0
+      ]
+    },
+    "class_type": "LTXVSeparateAVLatent",
+    "_meta": {
+      "title": "LTXV分离音视频潜空间"
+    }
+  },
+  "65": {
+    "inputs": {
+      "samples": [
+        "64",
+        1
+      ],
+      "audio_vae": [
+        "60",
+        0
+      ]
+    },
+    "class_type": "LTXVAudioVAEDecode",
+    "_meta": {
+      "title": "LTXV音频VAE解码"
+    }
+  },
+  "68": {
+    "inputs": {
+      "longer_edge": 1280,
+      "images": [
+        "74",
+        0
+      ]
+    },
+    "class_type": "ResizeImagesByLongerEdge",
+    "_meta": {
+      "title": "缩放图像（长边）"
+    }
+  },
+  "69": {
+    "inputs": {
+      "video_latent": [
+        "86",
+        2
+      ],
+      "audio_latent": [
+        "91",
+        0
+      ]
+    },
+    "class_type": "LTXVConcatAVLatent",
+    "_meta": {
+      "title": "LTXVConcatAVLatent"
+    }
+  },
+  "71": {
+    "inputs": {
+      "text": "$param.text"
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码,$prompt.text"
+    }
+  },
+  "78": {
+    "inputs": {
+      "text": "singing, subtitles, blurry, out of focus, overexposed, underexposed, low contrast, washed out colors, excessive noise, grainy texture, poor lighting, flickering, motion blur, distorted proportions, unnatural skin tones, deformed facial features, asymmetrical face, missing facial features, extra limbs, disfigured hands, wrong hand count, artifacts around text, unreadable text on shirt or hat, incorrect lettering on cap (“PNTR”), missing microphone, misplaced microphone, inconsistent perspective, camera shake, incorrect depth of field, background too sharp, background clutter, distracting reflections, harsh shadows, inconsistent lighting direction, color banding, cartoonish rendering, 3D CGI look, unrealistic materials, uncanny valley effect, incorrect ethnicity, wrong gender, exaggerated expressions, smiling, laughing, exaggerated sadness, wrong gaze direction, eyes looking at camera, mismatched lip sync, silent or muted audio, distorted voice, robotic voice, echo, background noise, off-sync audio, missing sniff sounds, incorrect dialogue, added dialogue, repetitive speech, jittery movement, awkward pauses, incorrect timing, unnatural transitions, inconsistent framing, tilted camera, missing door or shelves, missing shallow depth of field, flat lighting, inconsistent tone, cinematic oversaturation, stylized filters, or AI artifacts."
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "负面提示词"
+    }
+  },
+  "79": {
+    "inputs": {
+      "frame_rate": [
+        "20",
+        0
+      ],
+      "loop_count": 0,
+      "filename_prefix": "LTX2-pre",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 21,
+      "save_metadata": false,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": false,
+      "images": [
+        "35",
+        0
+      ],
+      "audio": [
+        "65",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "$output.video"
+    }
+  },
+  "80": {
+    "inputs": {
+      "width": [
+        "18",
+        1
+      ],
+      "height": [
+        "18",
+        2
+      ],
+      "length": [
+        "87",
+        0
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLTXVLatentVideo",
+    "_meta": {
+      "title": "空Latent视频（LTXV）"
+    }
+  },
+  "90": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": false,
+        "lora": "ltx-2-19b-distilled-lora-384.safetensors",
+        "strength": 0.6
+      },
+      "lora_2": {
+        "on": true,
+        "lora": "ltx-2-19b-ic-lora-detailer.safetensors",
+        "strength": 0.8
+      },
+      "lora_3": {
+        "on": false,
+        "lora": "Ltx2\\ltx-2-19b-lora-镜头右摇.safetensors",
+        "strength": 0.6
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "33",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "权重Lora加载器"
+    }
+  },
+  "91": {
+    "inputs": {
+      "frames_number": [
+        "87",
+        0
+      ],
+      "frame_rate": [
+        "57",
+        0
+      ],
+      "batch_size": 1,
+      "audio_vae": [
+        "60",
+        0
+      ]
+    },
+    "class_type": "LTXVEmptyLatentAudio",
+    "_meta": {
+      "title": "LTXV 空音频潜空间"
+    }
+  },
+  "93": {
+    "inputs": {
+      "tile_size": 512,
+      "overlap": 64,
+      "temporal_size": 64,
+      "temporal_overlap": 8,
+      "samples": [
+        "34",
+        2
+      ]
+    },
+    "class_type": "VAEDecodeTiled",
+    "_meta": {
+      "title": "VAE解码（分块）"
+    }
+  },
+  "18": {
+    "inputs": {
+      "image": [
+        "68",
+        0
+      ]
+    },
+    "class_type": "GetImageSizeAndCount",
+    "_meta": {
+      "title": "Get Image Size & Count"
+    }
+  },
+  "87": {
+    "inputs": {
+      "value": 73
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+      "title": "total_frames"
+    }
+  },
+  "74": {
+    "inputs": {
+      "image": "$param.image1"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "$param.image1"
+    }
+  },
+  "81": {
+    "inputs": {
+      "img_compression": 33,
+      "image": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "LTXVPreprocess",
+    "_meta": {
+      "title": "LTXV预处理 1"
+    }
+  },
+  "75": {
+    "inputs": {
+      "image": "$param.image2"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "$param.image2"
+    }
+  },
+  "19": {
+    "inputs": {
+      "width": [
+        "18",
+        1
+      ],
+      "height": [
+        "18",
+        2
+      ],
+      "upscale_method": "lanczos",
+      "keep_proportion": "crop",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 2,
+      "device": "cpu",
+      "image": [
+        "75",
+        0
+      ]
+    },
+    "class_type": "ImageResizeKJv2",
+    "_meta": {
+      "title": "Resize Image 2"
+    }
+  },
+  "82": {
+    "inputs": {
+      "img_compression": 33,
+      "image": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "LTXVPreprocess",
+    "_meta": {
+      "title": "LTXV预处理 2"
+    }
+  },
+  "86": {
+    "inputs": {
+      "num_guides": "2",
+      "positive": [
+        "15",
+        0
+      ],
+      "negative": [
+        "15",
+        1
+      ],
+      "latent": [
+        "80",
+        0
+      ],
+      "num_guides.frame_idx_1": 0,
+      "num_guides.strength_1": 1,
+      "num_guides.image_1": [
+        "81",
+        0
+      ],
+      "num_guides.frame_idx_2": 73,
+      "num_guides.strength_2": 1,
+      "num_guides.image_2": [
+        "82",
+        0
+      ]
+    },
+    "class_type": "LTXVAddGuideMulti",
+    "_meta": {
+      "title": "LTXVAddGuideMulti"
+    }
+  }
+}

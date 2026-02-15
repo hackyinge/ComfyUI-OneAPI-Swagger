@@ -296,11 +296,14 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                 }
             }
         },
+        "/oneapi/v1/chat/completions": {
+            "$ref": "#/paths/~1v1~1chat~1completions"
+        },
         "/v1/chat/completions": {
             "post": {
                 "tags": ["openai"],
                 "summary": "OpenAI 兼容对话接口",
-                "description": "提供与 OpenAI Chat Completions API 兼容的接口。支持多模态输入（文本+图像），支持图生视频逻辑。",
+                "description": "提供与 OpenAI Chat Completions API 兼容的接口。支持多模态输入（文本+单张或多张图像），支持图生视频及多图融合工作流。图片会自动映射到工作流中的 $param.image1, $param.image2... 插槽。",
                 "operationId": "chatCompletions",
                 "requestBody": {
                     "required": True,
@@ -311,15 +314,32 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                             },
                             "examples": {
                                 "i2v": {
-                                    "summary": "多模态图生视频",
+                                    "summary": "单图生视频 (首尾帧相同)",
                                     "value": {
-                                        "model": "ltx2_landscape",
+                                        "model": "LTX2-SWZ",
                                         "messages": [
                                             {
                                                 "role": "user",
                                                 "content": [
-                                                    {"type": "text", "text": "镜头从幼年吴小凡恐惧的视角开始..."},
-                                                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+                                                    {"type": "text", "text": "a cinematic video of a sunset"},
+                                                    {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}}
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                "multi_image": {
+                                    "summary": "多图工作流输入",
+                                    "value": {
+                                        "model": "LTX-more-image-3-3",
+                                        "messages": [
+                                            {
+                                                "role": "user",
+                                                "content": [
+                                                    {"type": "text", "text": "three images transition"},
+                                                    {"type": "image_url", "image_url": {"url": "https://example.com/img1.jpg"}},
+                                                    {"type": "image_url", "image_url": {"url": "https://example.com/img2.jpg"}},
+                                                    {"type": "image_url", "image_url": {"url": "https://example.com/img3.jpg"}}
                                                 ]
                                             }
                                         ]
@@ -343,6 +363,7 @@ ComfyUI-OneAPI-Swagger 提供简洁的 REST API 接口来执行 ComfyUI 工作�
                 }
             }
         }
+
     },
     "components": {
         "schemas": {
