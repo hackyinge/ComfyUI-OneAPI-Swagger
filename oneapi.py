@@ -428,16 +428,16 @@ async def chat_completions(request):
         if not prompt_text:
             return web.json_response({"error": "Prompt text is empty"}, status=400)
         
-        # 2. 确定并加载工作流
-        workflow_name = model.split(':')[0] if ':' in model else model
+        # 2. 确定并加载工作流 (统一转为小写以匹配文件名)
+        workflow_name = (model.split(':')[0] if ':' in model else model).lower()
         
-        # 核心逻辑：根据传入图片数量动态映射 LTX 多图工作流
-        if workflow_name.startswith('LTX-more-image-'):
+        # 核心逻辑：根据传入图片数量动态映射 LTX 多图工作流 (全小写匹配)
+        if workflow_name.startswith('ltx-more-image-'):
             num_pics = len(image_data_list)
             # 仅在图片数量为 2-5 之间时进行智能转换
             if 2 <= num_pics <= 5:
                 # 强制映射到对应数量的工作流文件 (如 ltx-more-image-3-3.json)
-                new_workflow_name = f"LTX-more-image-{num_pics}-3"
+                new_workflow_name = f"ltx-more-image-{num_pics}-3"
                 if new_workflow_name != workflow_name:
                     print(f"[OneAPI] 动态映射工作流: {workflow_name} -> {new_workflow_name} (图片数: {num_pics})")
                     workflow_name = new_workflow_name
@@ -445,9 +445,9 @@ async def chat_completions(request):
         try:
             workflow = _load_workflow_from_local(workflow_name, request)
         except Exception as e:
-            # Fallback to LTX2-SWZ if model name not found
+            # Fallback to ltx2-swz if model name not found
             try:
-                workflow = _load_workflow_from_local('LTX2-SWZ', request)
+                workflow = _load_workflow_from_local('ltx2-swz', request)
             except:
                 return web.json_response({"error": f"Workflow '{workflow_name}' not found: {str(e)}"}, status=404)
         
