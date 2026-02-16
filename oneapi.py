@@ -523,7 +523,7 @@ async def chat_completions(request):
         client_id = str(uuid.uuid4())
         
         prompt_id = await _queue_prompt(workflow, client_id, {}, request)
-        execution_result = await _wait_for_results(prompt_id, 600, request, output_id_2_var)
+        execution_result = await _wait_for_results(prompt_id, 1200, request, output_id_2_var)
         
         if execution_result.get('status') != 'completed':
             return web.json_response({"error": f"Execution failed: {execution_result.get('status')}"}, status=500)
@@ -533,10 +533,21 @@ async def chat_completions(request):
         audios = execution_result.get('audios', [])
         images = execution_result.get('images', [])
         
-        # 构建文本内容
+        # 构建文本内容 - 动态获取当前请求的完整地址 (协议+域名+端口)
+        protocol = request.scheme
+        host = request.host
+        base_url = f"{protocol}://{host}"
+
         response_content = f"Generation complete."
-        if videos: response_content += f"\nVideo: {videos[0]}"
-        if audios: response_content += f"\nAudio: {audios[0]}"
+        if videos: 
+            video_url = f"{base_url}/view?filename={videos[0]}&type=output"
+            response_content += f"\nVideo: {video_url}"
+        if audios: 
+            audio_url = f"{base_url}/view?filename={audios[0]}&type=output"
+            response_content += f"\nAudio: {audio_url}"
+        if images and not videos:
+            img_url = f"{base_url}/view?filename={images[0]}&type=output"
+            response_content += f"\nImage: {img_url}"
         
         response_data = {
             "id": f"chatcmpl-{uuid.uuid4()}",
@@ -665,7 +676,13 @@ async def _process_node_params(node_data, params, request=None):
                             print(f"[DEBUG]   Skip unknown field {input_field}")
                             continue
 
-                # 设置到最终确定的字段
+                # 特殊逻辑：种子节点的字段往往不叫 seed，尝试常见变体
+                if var_name == 'seed' or input_field == 'seed':
+                    if final_field not in inputs:
+                        for alt in ['noise_seed', 'seed_value', 'seed']:
+                            if alt in inputs:
+                                final_field = alt
+                                break
                 if node_class_type in MEDIA_UPLOAD_NODE_TYPES:
                     await _handle_media_upload(node_data, final_field, param_value, request)
                 else:
