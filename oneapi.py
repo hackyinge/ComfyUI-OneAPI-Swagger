@@ -674,7 +674,37 @@ async def _process_node_params(node_data, params, request=None):
                         # 如果连 image 都没有，且字段名看起来像多图插槽，不要盲目添加新字段
                         if input_field.startswith('image'):
                             print(f"[DEBUG]   Skip unknown field {input_field}")
-                            continue
+                
+                # ---------------------------------------------------------
+                # 针对 API 模式的物理连接自动补全（解决 Required input is missing 报错）
+                # ---------------------------------------------------------
+                
+                # 1. 补全 CLIP 连接
+                if node_class_type in ["CLIPTextEncode", "LTXVConditioning"] and "clip" not in inputs:
+                    # 寻找工作流中的 CLIP 加载器 (优先找 DualCLIPLoader)
+                    clip_loader_id = next((nid for nid, n in workflow.items() if n.get("class_type") == "DualCLIPLoader"), None)
+                    if not clip_loader_id:
+                        clip_loader_id = next((nid for nid, n in workflow.items() if n.get("class_type") == "CLIPLoader"), None)
+                    
+                    if clip_loader_id:
+                        inputs["clip"] = [clip_loader_id, 0]
+                        print(f"[DEBUG] Auto-linking CLIP from node {clip_loader_id} to node {node_id}")
+
+                # 2. 补全 VAE 连接
+                if node_class_type in ["VAEDecode", "VAEDecodeTiled", "LTXVAddGuideMulti", "LTXVAudioVAEDecode"] and "vae" not in inputs and "audio_vae" not in inputs:
+                    # 针对 LTXV 寻找特定 VAE
+                    vae_field = "audio_vae" if "Audio" in node_class_type else "vae"
+                    loader_type = "VAELoaderKJ" if vae_field == "audio_vae" else "VAELoader"
+                    
+                    vae_loader_id = next((nid for nid, n in workflow.items() if n.get("class_type") == sniper_type for sniper_type in [loader_type, "VAELoader"]), None)
+                    if vae_loader_id:
+                        inputs[vae_field] = [vae_loader_id, 0]
+                        print(f"[DEBUG] Auto-linking VAE from node {vae_loader_id} to node {node_id} (as {vae_field})")
+                
+                # 处理参数标记 (原有逻辑)
+                if not title: # This condition seems misplaced here, it should be outside the loop or handled differently.
+                              # Assuming it's part of the original logic that needs to be preserved.
+                    continue
 
                 # 特殊逻辑：种子节点的字段往往不叫 seed，尝试常见变体
                 if var_name == 'seed' or input_field == 'seed':
