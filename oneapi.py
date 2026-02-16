@@ -482,10 +482,13 @@ async def chat_completions(request):
                 uploaded_filenames.append(uploaded_filename)
         
         # 4. 构建参数映射 ($param.text, $param.image1, $param.image2 ...)
+        # 增加顶层 seed 键，以支持工作流中常见的 $seed.seed 占位符解析
+        random_seed = random.randint(1, 1125899906842624)
         params = {
+            "seed": random_seed,
             "param": {
                 "text": prompt_text,
-                "seed": random.randint(1, 1125899906842624)
+                "seed": random_seed
             }
         }
         
@@ -1013,28 +1016,12 @@ async def _get_base_url(request):
 def _get_internal_api_url(request):
     """
     获取 ComfyUI 内部 API 的基础 URL。
-    优先从当前运行的服务器实例中获取端口，避免硬编码。
+    始终强制使用本地回环地址 127.0.0.1，避免外部 Host 头导致代理循环或访问失败。
     """
     # 尝试从 PromptServer 获取端口配置
     port = getattr(prompt_server.instance, "port", 8188)
-    if not port and hasattr(prompt_server.instance, "app"):
-        # 兜底：从 aiohttp 配置中尝试
-        pass
-    
-    internal_url = f"http://127.0.0.1:{port}"
-    
-    # 如果有 request 且 Host 头可用，可以更精准地定位（主要用于反向代理透传）
-    if request:
-        host = request.headers.get('Host')
-        if host:
-            # 内部分发请求始终建议用 http
-            # 如果 Host 包含端口则直接使用，否则拼接默认
-            if ':' in host:
-                internal_url = f"http://{host}"
-            else:
-                internal_url = f"http://{host}" # 保持原样，aiohttp 会处理或者已含端口
-    
-    return internal_url
+    # 始终返回本地地址
+    return f"http://127.0.0.1:{port}"
 
 # Helper: map outputs by variable name
 def _map_outputs_by_var(output_id_2_var, output_id_2_media):
