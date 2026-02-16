@@ -430,6 +430,18 @@ async def chat_completions(request):
         
         # 2. 确定并加载工作流
         workflow_name = model.split(':')[0] if ':' in model else model
+        
+        # 核心逻辑：根据传入图片数量动态映射 LTX 多图工作流
+        if workflow_name.startswith('LTX-more-image-'):
+            num_pics = len(image_data_list)
+            # 仅在图片数量为 2-5 之间时进行智能转换
+            if 2 <= num_pics <= 5:
+                # 强制映射到对应数量的工作流文件 (如 ltx-more-image-3-3.json)
+                new_workflow_name = f"LTX-more-image-{num_pics}-3"
+                if new_workflow_name != workflow_name:
+                    print(f"[OneAPI] 动态映射工作流: {workflow_name} -> {new_workflow_name} (图片数: {num_pics})")
+                    workflow_name = new_workflow_name
+
         try:
             workflow = _load_workflow_from_local(workflow_name, request)
         except Exception as e:
@@ -477,17 +489,28 @@ async def chat_completions(request):
             }
         }
         
-        # 特殊处理：如果是只有一张图上传，需要同时填入 image1 和 image2 (首尾帧)
-        if len(uploaded_filenames) == 1:
+        # 统一处理图片插槽映射
+        num_uploaded = len(uploaded_filenames)
+        if num_uploaded > 0:
+            # 基本映射: $param.image 指向第一张或唯一一张
             params["param"]["image"] = uploaded_filenames[0]
-            params["param"]["image1"] = uploaded_filenames[0]
-            params["param"]["image2"] = uploaded_filenames[0]
-        else:
-            # 正常分配所有图片到对应的 image1, image2... 插槽
-            for i, fname in enumerate(uploaded_filenames):
-                p_key = f"image{i+1}"
-                params["param"][p_key] = fname
-                if i == 0: params["param"]["image"] = fname # 兼容 $param.image
+            
+            # 多图工作流映射: 映射到 image1, image2, image3, image4, image5
+            # 如果实际上传的图片不足，用最后一张图片进行“延长填充”，确保工作流不报错
+            for i in range(5):
+                slot_key = f"image{i+1}"
+                if i < num_uploaded:
+                    params["param"][slot_key] = uploaded_filenames[i]
+                else:
+                    # 填充最后一张，或者单图时 1 和 2 相同 (首尾对齐)
+                    params["param"][slot_key] = uploaded_filenames[-1]
+            
+            # 特殊逻辑：如果是 LTX 2图首尾模式，需要把 image2 映射到最后一张（即使有很多张）
+            if num_uploaded > 2:
+                # 这种情况下 image2 实际上可能是中间帧，在某些双图逻辑中建议显式保留尾帧
+                params["param"]["image_end"] = uploaded_filenames[-1]
+        
+        print(f"[OneAPI] Params constructed for {num_uploaded} images: {list(params['param'].keys())}")
 
         print(f"[OneAPI] Params applied: {list(params['param'].keys())}")
         
@@ -625,11 +648,25 @@ async def _process_node_params(node_data, params, request=None):
             
             if param_value is not None:
                 print(f"[DEBUG] Title marker ${var_name}.{input_field} -> {param_value}")
-                # 设置到 input_field 对应的输入
+                
+                # 安全保护：如果 input_field 不在结点的原生输入中，且结点是 LoadImage 类型，
+                # 说明占位符意在指定图片，我们应该寻找 'image' 字段
+                final_field = input_field
+                if final_field not in inputs and node_class_type in MEDIA_UPLOAD_NODE_TYPES:
+                    if 'image' in inputs:
+                        final_field = 'image'
+                        print(f"[DEBUG]   Fallback {input_field} to 'image' for media node")
+                    else:
+                        # 如果连 image 都没有，且字段名看起来像多图插槽，不要盲目添加新字段
+                        if input_field.startswith('image'):
+                            print(f"[DEBUG]   Skip unknown field {input_field}")
+                            continue
+
+                # 设置到最终确定的字段
                 if node_class_type in MEDIA_UPLOAD_NODE_TYPES:
-                    await _handle_media_upload(node_data, input_field, param_value, request)
+                    await _handle_media_upload(node_data, final_field, param_value, request)
                 else:
-                    inputs[input_field] = param_value
+                    inputs[final_field] = param_value
 
 async def _resolve_placeholder(input_value, params, node_class_type, node_data, input_name, request):
     """Resolve a placeholder value and return the new value, or None if not a placeholder"""
