@@ -467,19 +467,24 @@ async def chat_completions(request):
                     try:
                         uploaded_filename = await _upload_media(temp_path, request)
                     finally:
-                        os.unlink(temp_path)
+                        if os.path.exists(temp_path):
+                            os.unlink(temp_path)
                 except Exception as e:
-                    print(f"Error processing image: {e}")
+                    print(f"Error processing base64 image: {e}")
+                    raise Exception(f"Base64 image processing failed: {str(e)}")
             elif image_data.startswith('http'):
                 try:
                     uploaded_filename = await _upload_media_from_source(image_data, request)
                 except Exception as e:
                     print(f"Error downloading image: {e}")
+                    raise Exception(f"External image download failed: {str(e)}")
             else:
                 uploaded_filename = image_data
             
             if uploaded_filename:
                 uploaded_filenames.append(uploaded_filename)
+            else:
+                raise Exception(f"Failed to process image data index {len(uploaded_filenames)}")
         
         # 4. 构建参数映射 ($param.text, $param.image1, $param.image2 ...)
         # 增加顶层 seed 键，以支持工作流中常见的 $seed.seed 占位符解析
@@ -519,6 +524,15 @@ async def chat_completions(request):
         
         # 5. 执行工作流
         workflow = await _apply_params_to_workflow(workflow, params, request)
+        
+        # DEBUG: Save applied workflow for inspection
+        try:
+            debug_file = os.path.join(os.path.dirname(__file__), "debug_last_workflow.json")
+            with open(debug_file, "w", encoding="utf-8") as f:
+                json.dump(workflow, f, indent=2, ensure_ascii=False)
+            print(f"[DEBUG] Saved applied workflow to {debug_file}")
+        except: pass
+        
         output_id_2_var = await _extract_output_nodes(workflow)
         client_id = str(uuid.uuid4())
         
@@ -564,8 +578,9 @@ async def chat_completions(request):
         return web.json_response(response_data)
         
     except Exception as e:
-        print(f"Error in chatCompletions: {str(e)}, {traceback.format_exc()}")
-        return web.json_response({"error": str(e)}, status=500)
+        error_msg = f"{str(e)}\n{traceback.format_exc()}"
+        print(f"Error in chatCompletions: {error_msg}")
+        return web.json_response({"error": error_msg}, status=500)
 
 
 
