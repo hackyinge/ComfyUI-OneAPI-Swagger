@@ -699,6 +699,10 @@ async def _process_node_params(node_data, params, request=None):
 async def _resolve_placeholder(input_value, params, node_class_type, node_data, input_name, request):
     """Resolve a placeholder value and return the new value, or None if not a placeholder"""
     
+    # 必须是字符串才可能是占位符
+    if not isinstance(input_value, str):
+        return None
+
     # 处理 $param.xxx 格式
     if input_value.startswith('$param.'):
         param_key = input_value[7:]  # 去掉 '$param.' 前缀
