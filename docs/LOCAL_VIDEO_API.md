@@ -6,23 +6,22 @@
 - Swagger：<http://127.0.0.1:8788/oneapi/docs>
 - OpenAPI：`/oneapi/openapi.json`。Swagger 静态资源本地提供，无需 CDN。
 
-## 默认方案
+## 默认快速预览与正式产出
 
-只提供 `prompt` 即采用以下设置；不传 seed 时随机生成。
+只传prompt时使用896×512、24fps、5秒、H3/Turbo4步与原生H3解码，refiner=false，五项后处理全部关闭。新默认工作流为`h3_preview_512p.json`。不传seed、null或-1时每次随机，明确种子则可复现。
+
+正式产出请显式传入分辨率和二阶段设置：
 
 ```json
-{"profile":"triton4","seconds":5,"width":1344,"height":768,
- "draft_width":896,"draft_height":512,"refiner":true,"fast_decode":true,
- "refiner_decoder":"native","refiner_tile_size":768,"save_draft":false}
+{"prompt":"A woman waves in a sunlit kitchen.","width":1344,"height":768,
+ "draft_width":896,"draft_height":512,"refiner":true,"fast_decode":true,"seconds":5}
 ```
 
-H3 INT8 ConvRot＋Turbo 4步＋Triton SoL，TAEH3 解码草稿；原生 LTX 编码、学习型潜空间 ×2、公开 NVIDIA H3 SoL Refiner 1步（Euler，σ=0.909375）、原生 LTX 分块解码。交付24fps、120帧、5秒，并保留H3音轨，默认只保存成片；`save_draft:true`可另存草稿。省去草稿编码不会改变成片像素或音轨。
+该配置是此前验证的H3→NVIDIA SoL Refiner方案：4+1步、INT8 ConvRot、Triton SoL，TAEH3解码草稿，原生LTX精修解码。旧`h3_sol_default.json`、quality/preview768p模板保留原配置，不随新的快速API默认值改变。
 
-这是画质与耗时的平衡档。最终 `refiner_decoder:"tae"` 明显变糊，仅供预览；`fast_decode:false` 保留原生H3草稿解码，作为画质备选。`refiner:false` 可直接生成H3，且此时 `fast_decode` 默认为false。未默认叠加去模糊、降噪、超分、插帧或HDR。
+超分、降噪、去模糊、插帧与HDR均由本次请求的postprocess对象控制，省略时全部关闭。插帧新增interpolate布尔开关；明确false覆盖残留fps_multiplier，旧的仅倍率请求仍兼容。
 
-显式修改最终尺寸、未给草稿尺寸时，草稿回到目标一半的32像素网格；需要896×512草稿时明确传入。其他尺寸不沿用本轮768p耗时。非64倍数输出按可执行网格精修后缩放回请求大小。
-
-默认命名工作流：`h3_sol_default.json`；另有 `h3_sol_quality_768p.json`、`h3_sol_preview_768p.json`、`h3_native_768p.json`。均在插件 `workflows/`，默认及二阶段备选也导出到 `user/default/workflows/LocalVideo/`。工作流包含 `$prompt`、`$seed`、`$output.video` 标记，可直接用于原有 `/oneapi/v1/execute`。
+横竖屏、全部字段、Mac mini后端TypeScript示例、异步轮询和认证下载见 **[调用方接入指南](VIDEO_CLIENT_GUIDE.md)**。额外超分会乘以width/height；不能把测试低分辨率和正式高分辨率的耗时作为同画质加速对照。
 
 ## 接口
 
@@ -86,7 +85,7 @@ while True:
 
 ```json
 {"mode":"postprocess","input_video":"uploaded.mp4","seconds":5,"input_fps":24,
- "postprocess":{"deblur":true,"fps_multiplier":2}}
+ "postprocess":{"deblur":true,"interpolate":true,"fps_multiplier":2}}
 ```
 
 另支持 `upscale:true,scale:2`、`denoise:true`、`hdr:true`。插帧保持原时长；HDR为PQ/BT.2020/10bit，需HDR显示环境。后处理秒数不含输入生成，不能混入端到端生成排名。

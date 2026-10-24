@@ -143,7 +143,7 @@ Content-Type: application/json
 {"task":"video","prompt":"A woman waves in a sunlit kitchen.","seconds":5}
 ```
 
-使用已选择的H3→SoL Refiner默认方案，1344×768、24fps、5秒。原有`/oneapi/v1/video/...`接口保留。默认只保存成片，省去中间草稿MP4编码，成片像素与音轨不变；`save_draft:true`恢复草稿输出。
+默认为快速预览：H3单阶段896×512、24fps、5秒，精修与五项后处理均关闭。正式产出显式传width/height、refiner:true、草稿尺寸及所需postprocess开关；旧固定768p二阶段模板保留。完整字段及Mac mini调用方示例见[视频接入指南](VIDEO_CLIENT_GUIDE.md)。
 
 ## 调用与工作流
 

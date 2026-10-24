@@ -62,4 +62,4 @@ proxy_read_timeout 900s;
 venv/bin/python -m unittest discover -s custom_nodes/ComfyUI-OneAPI-Swagger/tests
 ```
 
-当前 53 项单元测试覆盖工作流、多图顺序和绑定、Turbo sigma、GPU 容量调度。真实模型测试条件与局限见统一 API 文档；模型权重、对比目录和测试图片需单独准备，不随 Git 提交。
+当前 57 项单元测试覆盖工作流、多图顺序和绑定、Turbo sigma、GPU 容量调度。真实模型测试条件与局限见统一 API 文档；模型权重、对比目录和测试图片需单独准备，不随 Git 提交。

@@ -12,7 +12,7 @@ class MediaWorkflowTests(unittest.TestCase):
     def test_video_retains_existing_default(self):
         graph = build_media_workflow({'task': 'video', 'prompt': 'test'})
         self.assertEqual((graph['condition']['inputs']['width'], graph['condition']['inputs']['height']), (896, 512))
-        self.assertEqual(graph['refine_decode']['class_type'], 'VAEDecodeTiled')
+        self.assertNotIn('refine_decode', graph)
 
     def test_new_image_defaults_use_native_conditioning_and_sampling(self):
         graph = build_media_workflow({'width': 768, 'height': 512, 'n': 2})

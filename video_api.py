@@ -147,7 +147,7 @@ def register_video_routes(queue_prompt):
 
     @routes.get(PREFIX + "/workflows")
     async def workflows(request):
-        return web.json_response({"defaults": DEFAULT_VIDEO_SETTINGS, "refiner_example": {"mode": "t2v", **DEFAULT_VIDEO_SETTINGS}, "profiles": PROFILES, "modes": MODES, "build_url": PREFIX + "/workflows/build",
+        return web.json_response({"defaults": DEFAULT_VIDEO_SETTINGS, "refiner_example": {"mode": "t2v", "width": 1344, "height": 768, "draft_width": 896, "draft_height": 512, "refiner": True, "fast_decode": True}, "profiles": PROFILES, "modes": MODES, "build_url": PREFIX + "/workflows/build",
                                   "description": "POST settings to build an editable API graph; import that JSON into ComfyUI, or submit it through /oneapi/v1/video/jobs."})
 
 
@@ -173,6 +173,10 @@ def register_video_routes(queue_prompt):
         result = {"id": job_id, "client_id": client_id, "status": "queued", "status_url": ("/oneapi/v1" if request.path == "/oneapi/v1/jobs" else PREFIX) + "/jobs/" + job_id, "workflow": graph, "reference_map": references}
         if request.path == "/oneapi/v1/jobs" and settings.get("task", "image") == "image" and "workflow" not in settings:
             result["seed"] = settings["seed"]
+        elif "noise" in graph or "refine_noise" in graph:
+            noise = graph.get("noise", graph.get("refine_noise"))
+            if noise["class_type"] == "RandomNoise":
+                result["seed"] = noise["inputs"]["noise_seed"]
         return web.json_response(result, status=202)
 
 
@@ -209,9 +213,9 @@ def video_openapi():
         "profile": {"type": "string", "enum": list(PROFILES), "default": DEFAULT_VIDEO_SETTINGS["profile"]},
         "prompt": {"type": "string"}, "seconds": {"type": "number", "default": 5},
         "width": {"type": "integer", "default": DEFAULT_VIDEO_SETTINGS["width"]}, "height": {"type": "integer", "default": DEFAULT_VIDEO_SETTINGS["height"]},
-        "draft_width": {"type": "integer", "description": "H3 stage-one width when refiner=true; default 896x512 for standard output; explicit output dimensions use half size on a 32-pixel grid unless draft dimensions are supplied"},
-        "draft_height": {"type": "integer", "description": "H3 stage-one height when refiner=true; default 896x512 for standard output; explicit output dimensions use half size on a 32-pixel grid unless draft dimensions are supplied"},
-        "seed": {"type": "integer"}, "input_fps": {"type": "number", "default": 24},
+        "draft_width": {"type": "integer", "description": "H3 stage-one width when refiner=true; default is half of requested output size on a 32-pixel grid; supply 896x512 for the established 1344x768 quality workflow"},
+        "draft_height": {"type": "integer", "description": "H3 stage-one height when refiner=true; default is half of requested output size on a 32-pixel grid; supply 896x512 for the established 1344x768 quality workflow"},
+        "seed": {"type": "integer", "nullable": True, "description": "Omit, null or -1 creates a random seed shared by H3 and refinement. Explicit nonnegative seeds are retained."}, "input_fps": {"type": "number", "default": 24},
         "refiner": {"type": "boolean", "default": DEFAULT_VIDEO_SETTINGS["refiner"], "description": "Generate an H3 draft, then run public NVIDIA H3 SoL Refiner LTX-2.5 INT8 ConvRot (one step); width/height specify final size. mode=refine processes uploaded video only."},
         "fast_decode": {"type": "boolean", "default": DEFAULT_VIDEO_SETTINGS["fast_decode"], "description": "Decode the H3 draft with TAEH3; final LTX decoding remains native. With refiner=false this defaults to false."},
         **{key: {"type": "string", "description": "Local uploaded filename returned by /upload/image"} for key in ("first_frame", "last_frame", "drive_audio", "input_video")},
@@ -220,10 +224,11 @@ def video_openapi():
         "audio_denoise_strength": {"type": "number", "default": 0.35},
         "ref_image_size": {"type": "string", "enum": ["match", "max"]},
         "reference_video_audio": {"type": "boolean", "default": False},
-        "postprocess": {"type": "object", "additionalProperties": False, "properties": {
+        "postprocess": {"type": "object", "description": "Optional independent processing switches. Omit the object to disable all processing. Effects run after generation/refinement; upscale multiplies the requested width/height.", "additionalProperties": False, "properties": {
             **{key: {"type": "boolean", "default": False} for key in ("upscale", "denoise", "deblur", "hdr")},
-            "scale": {"type": "number", "default": 2}, "quality": {"type": "string", "default": "HIGHBITRATE_HIGH"},
-            "fps_multiplier": {"type": "integer", "default": 1}}},
+            "interpolate": {"type": "boolean", "default": False, "description": "Omitted: off unless legacy fps_multiplier > 1 is supplied. true: enable (default 2x); false: disable even when a multiplier is present."},
+            "scale": {"type": "number", "default": 2, "description": "Used only when upscale=true; 2 doubles both dimensions"}, "quality": {"type": "string", "default": "HIGHBITRATE_HIGH"},
+            "fps_multiplier": {"type": "integer", "default": 2, "description": "With interpolate=true defaults to 2. Omitted with no interpolate flag means no interpolation; legacy multiplier-only requests remain supported."}}},
         "workflow": {"type": "object", "description": "Any native API prompt graph; supports every installed local node"},
     }
     paths = {}
@@ -239,8 +244,9 @@ def video_openapi():
             operation["requestBody"] = {"required": True, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/VideoRequest"}}}}
         paths.setdefault(PREFIX + path, {})[method] = operation
     examples = {
-        "default": {"summary": "默认平衡方案 · 768p/5秒", "value": {"prompt": "A woman waves in a sunlit kitchen.", "seed": 20261040}},
-        "h3_sol_768p": {"summary": "明确指定平衡方案", "value": {**DEFAULT_VIDEO_SETTINGS, "seed": 20261040, "prompt": "A woman waves in a sunlit kitchen."}},
+        "default": {"summary": "默认快速预览 · 896x512 / 5秒 / 无后处理", "value": {"prompt": "A woman waves in a sunlit kitchen."}},
+        "h3_sol_768p": {"summary": "正式产出 · 明确指定768p二阶段", "value": {"prompt": "A woman waves in a sunlit kitchen.", "width": 1344, "height": 768, "draft_width": 896, "draft_height": 512, "refiner": True, "fast_decode": True}},
+        "portrait_post": {"summary": "竖屏二阶段 + 超分及插帧", "value": {"prompt": "A woman waves in a sunlit kitchen.", "width": 768, "height": 1344, "draft_width": 512, "draft_height": 896, "refiner": True, "fast_decode": True, "postprocess": {"upscale": True, "scale": 2, "interpolate": True, "fps_multiplier": 2}}},
         "uploaded_refine": {"summary": "精修通过本插件上传的视频", "value": {"mode": "refine", "input_video": "uploaded.mp4", "width": 1344, "height": 768, "seconds": 5, "seed": 42, "prompt": "A woman waves in a sunlit kitchen."}},
         "nvidia_post": {"summary": "NVIDIA 插帧/去模糊", "value": {"mode": "postprocess", "input_video": "uploaded.mp4", "seconds": 5, "postprocess": {"fps_multiplier": 2, "deblur": True}}},
     }

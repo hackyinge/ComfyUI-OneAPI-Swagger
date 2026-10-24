@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 
 spec = importlib.util.spec_from_file_location("video_workflows", Path(__file__).parents[1] / "video_workflows.py")
@@ -10,21 +11,58 @@ build = module.build_workflow
 
 
 class WorkflowTests(unittest.TestCase):
-    def test_selected_default_and_native_override(self):
+    def test_default_is_low_resolution_without_refinement_or_postprocessing(self):
         graph = build({"prompt": "test", "seed": 42})
         self.assertEqual((graph["condition"]["inputs"]["width"], graph["condition"]["inputs"]["height"]), (896, 512))
         self.assertEqual(graph["attention"]["class_type"], "MiniMaxH3MemoryEfficientSolAttentionPatch")
+        self.assertEqual(graph["decode"]["inputs"]["video_vae"], ["vae", 0])
+        for node in ("decode_vae", "refine_sample", "draft_save", "upscale", "denoise", "deblur", "interpolate", "hdr"):
+            self.assertNotIn(node, graph)
+        self.assertEqual(graph["video"]["inputs"]["fps"], 24)
+
+    def test_explicit_quality_settings_retain_native_refinement(self):
+        settings = {"refiner": True, "fast_decode": True, "width": 1344, "height": 768,
+                    "draft_width": 896, "draft_height": 512, "seed": 42}
+        graph = build(settings)
         self.assertEqual(graph["decode_vae"]["inputs"]["vae_name"], "taeh3.safetensors")
         self.assertEqual(graph["refine_decode"]["class_type"], "VAEDecodeTiled")
         self.assertEqual(graph["refine_decode"]["inputs"]["tile_size"], 768)
-        self.assertNotIn("refine_decode_vae", graph)
         self.assertNotIn("draft_save", graph)
-        with_draft = build({"save_draft": True, "seed": 42})
+        with_draft = build({**settings, "save_draft": True})
         self.assertIn("draft_save", with_draft)
         self.assertEqual(with_draft["sample"], graph["sample"])
-        graph = build({"refiner": False})
-        self.assertNotIn("refine_sample", graph)
-        self.assertNotIn("decode_vae", graph)
+
+    def test_postprocess_switches_are_independent_and_explicit_false_wins(self):
+        for switch, node in (("upscale", "upscale"), ("denoise", "denoise"), ("deblur", "deblur"), ("interpolate", "interpolate"), ("hdr", "hdr")):
+            graph = build({"postprocess": {switch: True}})
+            self.assertIn(node, graph)
+            for other in {"upscale", "denoise", "deblur", "interpolate", "hdr"} - {node}:
+                self.assertNotIn(other, graph)
+        graph = build({"postprocess": {"interpolate": False, "fps_multiplier": 2}})
+        self.assertNotIn("interpolate", graph)
+        self.assertEqual(graph["video"]["inputs"]["fps"], 24)
+        graph = build({"postprocess": {"interpolate": True}})
+        self.assertEqual(graph["video"]["inputs"]["fps"], 48)
+        for post in ({}, {key: False for key in ("upscale", "denoise", "deblur", "interpolate", "hdr")}):
+            graph = build({"postprocess": post})
+            self.assertEqual(graph["video"]["inputs"]["fps"], 24)
+            self.assertNotIn("upscale", graph)
+
+    def test_postprocess_typos_and_string_booleans_are_not_silently_applied(self):
+        for post in ({"upscal": True}, {"upscale": "false"}, {"interpolate": 1}):
+            with self.subTest(post=post), self.assertRaises(ValueError):
+                build({"postprocess": post})
+
+    def test_video_seeds_randomize_once_and_are_shared_with_refinement(self):
+        for extra in ({}, {"seed": None}, {"seed": -1}):
+            with self.subTest(extra=extra), patch.object(module.secrets, 'randbits', side_effect=[123, 456]) as rng:
+                graphs = [build({"refiner": True, **extra}) for _ in range(2)]
+                self.assertEqual([g['noise']['inputs']['noise_seed'] for g in graphs], [123, 456])
+                self.assertEqual([g['refine_noise']['inputs']['noise_seed'] for g in graphs], [123, 456])
+                self.assertEqual(rng.call_count, 2)
+        graph = build({"refiner": True, "seed": 0})
+        self.assertEqual(graph['noise']['inputs']['noise_seed'], 0)
+        self.assertEqual(graph['refine_noise']['inputs']['noise_seed'], 0)
 
     def test_postprocessing_does_not_inherit_refiner_default(self):
         graph = build({"mode": "postprocess", "input_video": "a.mp4", "postprocess": {"deblur": True}})

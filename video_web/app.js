@@ -1,7 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const categories = [['fixed768','▦','768p 固定规格'],['gpu_pool','⇄','GPU池调度验证'],['all','◈','当前规格全部'],['generation','ϟ','生成加速'],['stage2','⇢','H3 → LTX-2.5'],['post','▧','NVIDIA 后处理'],['reference','♫','参考与音频'],['history','◷','历史测试']];
-let records = [], shown = [], category = new URLSearchParams(location.search).get('category') === 'gpu_pool' ? 'gpu_pool' : 'fixed768', selected = new Set(), players = new Map();
+const categories = [['client_api','⚙','调用方参数验收'],['fixed768','▦','768p 固定规格'],['gpu_pool','⇄','GPU池调度验证'],['all','◈','当前规格全部'],['generation','ϟ','生成加速'],['stage2','⇢','H3 → LTX-2.5'],['post','▧','NVIDIA 后处理'],['reference','♫','参考与音频'],['history','◷','历史测试']];
+let records = [], shown = [], category = new URLSearchParams(location.search).get('category') === 'client_api' ? 'client_api' : new URLSearchParams(location.search).get('category') === 'gpu_pool' ? 'gpu_pool' : 'fixed768', selected = new Set(), players = new Map();
 let playing = false, master = null, suppressedUntil = 0, seeking = false;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const targets = () => [...players.entries()].filter(([id]) => selected.has(id)).map(([,v]) => v);
@@ -50,7 +50,7 @@ function syncEvent(v, event) {
 function listForCategory(key) { return records.filter(r => `${r.width}x${r.height}@${r.fps}` === $('spec').value && (key === 'fixed768' ? ['fixed768_v2','fixed768_v3'].includes(r.benchmark_group) && r.formal && !r.draft : key === 'all' ? true : key === 'history' ? r.benchmark_group === 'archive' : r.category === key)); }
 function renderNav() {
   $('categories').innerHTML = categories.map(([key,icon,label]) => `<button data-category="${key}" class="${category === key ? 'active' : ''}"><span class="icon">${icon}</span>${label}<span class="number">${listForCategory(key).length}</span></button>`).join('');
-  for (const button of $('categories').querySelectorAll('button')) button.onclick = () => { category = button.dataset.category; if (category === 'fixed768') $('spec').value = '1344x768@24'; render(); };
+  for (const button of $('categories').querySelectorAll('button')) button.onclick = () => { category = button.dataset.category; if (category === 'fixed768') $('spec').value = '1344x768@24'; if (category === 'client_api') $('spec').value = '896x512@24'; render(); };
 }
 function renderAudio() {
   const choice = $('audio').value;
@@ -65,13 +65,13 @@ function render() {
   shown = listForCategory(category).filter(r => !$('selected-only').checked || selected.has(r.id));
   if (category === 'fixed768') shown.sort((a,b)=>(b.assessment?.level==='recommended')-(a.assessment?.level==='recommended'));
   renderNav();
-  $('protocol').textContent = category === 'fixed768' ? '固定对照：1344×768 · 24fps · 120帧 · 5秒；H3草稿896×512，提示词、seed与步数固定。每次清空节点缓存并卸载GPU模型；系统文件与内核缓存保留，首次编译计入耗时。先独立测试，再测试叠加。' : '历史与其他实验仅展示所选尺寸/帧率。不同提示词、seed、草稿尺寸或缓存条件的记录仅供查看，不作为严格耗时对照。';
+  $('protocol').textContent = category === 'client_api' ? '调用方功能验收：所有视频5秒；后处理使用同一预览输入。按输出规格筛选，不同分辨率、seed、缓存条件不用于同画质速度倍率排名。' : category === 'fixed768' ? '固定对照：1344×768 · 24fps · 120帧 · 5秒；H3草稿896×512，提示词、seed与步数固定。每次清空节点缓存并卸载GPU模型；系统文件与内核缓存保留，首次编译计入耗时。先独立测试，再测试叠加。' : '历史与其他实验仅展示所选尺寸/帧率。不同提示词、seed、草稿尺寸或缓存条件的记录仅供查看，不作为严格耗时对照。';
   $('count').textContent = `${shown.length} 个视频 / 共 ${records.length} 个`;
   $('grid').innerHTML = shown.length ? shown.map(r => {
     const acceleration = r.acceleration.filter(a => !a.startsWith('LoRA:'));
     if (!acceleration.length) acceleration.push('原生 Attention / 原生 VAE');
     const cost = r.seconds == null ? '未记录' : `${r.seconds.toFixed(2)} 秒`;
-    return `<article class="card ${selected.has(r.id) ? '' : 'unselected'}" data-id="${esc(r.id)}"><div class="media"><video controls playsinline preload="metadata" muted poster="${esc(r.poster_url)}" data-id="${esc(r.id)}" aria-label="${esc(r.title)}"><source src="${esc(r.media_url)}" type="video/mp4"></video><label class="choose"><input type="checkbox" ${selected.has(r.id)?'checked':''} aria-label="选择 ${esc(r.title)}">加入对比</label></div><div class="card-heading"><h2>${esc(r.title)}</h2></div><div class="assessment ${esc(r.assessment?.level || 'archive')}"><strong>${esc(r.assessment?.verdict || '待评估')}</strong><p>${esc(r.assessment?.reason || '尚无视觉评估结论')}</p></div><p class="cost">${cost}<small>${r.timing_scope==='pipeline_for_draft'?'整链路（草稿未分段）':r.timing_scope==='draft_stage'?'草稿阶段':r.category==='post'?'仅后处理':'执行耗时'}</small></p><p class="meta">${r.width} × ${r.height} · ${r.fps.toFixed(0)} fps · ${r.duration.toFixed(2)} s · seed ${esc(r.seed ?? '未记录')}</p><p class="method">${esc(acceleration.join(' · '))}</p><div class="actions"><a href="${esc(r.workflow_url)}" download="${esc(r.id)}.json">♧ 工作流</a><a href="${esc(r.media_url)}" download="${esc(r.id)}.mp4">↓ 下载视频</a><time>${new Date(r.date).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}</time></div><details class="evidence"><summary>加速配置与运行证据</summary><p>${r.notes.map(esc).join('<br>')}</p><p>端到端请求：${r.wall_seconds == null ? '未记录' : r.wall_seconds.toFixed(3)+' s'}<br>缓存节点：${esc(r.cached_nodes.join(', ') || '无')}<br>记录：${esc(r.evidence)}</p><p><strong>完整加速配置</strong><br>${r.acceleration.map(esc).join('<br>')}</p><p><strong>提示词</strong><br>${esc(r.prompt || '原记录未保存')}</p><details><summary>模型文件与各节点耗时</summary><ul>${r.models.map(m=>`<li>${esc(m)}</li>`).join('')}</ul><pre>${esc(JSON.stringify(r.node_seconds,null,2))}</pre></details></details></article>`;
+    return `<article class="card ${selected.has(r.id) ? '' : 'unselected'}" data-id="${esc(r.id)}"><div class="media"><video controls playsinline preload="metadata" muted poster="${esc(r.poster_url)}" data-id="${esc(r.id)}" aria-label="${esc(r.title)}"><source src="${esc(r.media_url)}" type="video/mp4"></video><label class="choose"><input type="checkbox" ${selected.has(r.id)?'checked':''} aria-label="选择 ${esc(r.title)}">加入对比</label></div><div class="card-heading"><h2>${esc(r.title)}</h2></div><div class="assessment ${esc(r.assessment?.level || 'archive')}"><strong>${esc(r.assessment?.verdict || '待评估')}</strong><p>${esc(r.assessment?.reason || '尚无视觉评估结论')}</p></div><p class="cost">${cost}<small>${r.timing_scope==='pipeline_for_draft'?'整链路（草稿未分段）':r.timing_scope==='draft_stage'?'草稿阶段':r.timing_scope==='postprocess'||r.category==='post'?'仅后处理':r.timing_scope==='cached_pipeline'?'复用采样缓存，非完整推理':'执行耗时'}</small></p><p class="meta">${r.width} × ${r.height} · ${r.fps.toFixed(0)} fps · ${r.duration.toFixed(2)} s · seed ${esc(r.seed ?? '未记录')}</p><p class="method">${esc(acceleration.join(' · '))}</p><div class="actions"><a href="${esc(r.workflow_url)}" download="${esc(r.id)}.json">♧ 工作流</a><a href="${esc(r.media_url)}" download="${esc(r.id)}.mp4">↓ 下载视频</a><time>${new Date(r.date).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}</time></div><details class="evidence"><summary>加速配置与运行证据</summary><p>${r.notes.map(esc).join('<br>')}</p><p>端到端请求：${r.wall_seconds == null ? '未记录' : r.wall_seconds.toFixed(3)+' s'}<br>缓存节点：${esc(r.cached_nodes.join(', ') || '无')}<br>记录：${esc(r.evidence)}</p><p><strong>完整加速配置</strong><br>${r.acceleration.map(esc).join('<br>')}</p><p><strong>提示词</strong><br>${esc(r.prompt || '原记录未保存')}</p><details><summary>模型文件与各节点耗时</summary><ul>${r.models.map(m=>`<li>${esc(m)}</li>`).join('')}</ul><pre>${esc(JSON.stringify(r.node_seconds,null,2))}</pre></details></details></article>`;
   }).join('') : '<p class="empty">没有符合条件的视频。请调整分类或选择范围。</p>';
   for (const article of $('grid').querySelectorAll('.card')) {
     const id = article.dataset.id, v = article.querySelector('video'); players.set(id,v);
@@ -141,7 +141,7 @@ setInterval(()=> {
     }
     const specs = [...new Set(records.map(r=>`${r.width}x${r.height}@${r.fps}`))];
     $('spec').innerHTML = specs.map(s=>{const [size,fps]=s.split('@');return `<option value="${esc(s)}">${size.replace('x',' × ')} · ${fps} fps</option>`;}).join('');
-    $('spec').value = '1344x768@24';
+    $('spec').value = category === 'client_api' ? '896x512@24' : '1344x768@24';
     if (!records.some(r=>['fixed768_v2','fixed768_v3'].includes(r.benchmark_group) && r.formal && !r.draft)) category='all';
     selected = new Set(records.map(r=>r.id));
     $('failure-title').textContent=`失败记录（${catalog.failures.length} 次，未计入成功视频）`;

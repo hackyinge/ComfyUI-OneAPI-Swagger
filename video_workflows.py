@@ -15,10 +15,10 @@ PROFILES = {
 }
 MODES = ("t2v", "i2v", "fl2v", "ref2v", "audio2v", "postprocess", "refine")
 DEFAULT_VIDEO_SETTINGS = {
-    "profile": "triton4", "seconds": 5, "width": 1344, "height": 768,
-    "draft_width": 896, "draft_height": 512, "refiner": True,
-    "fast_decode": True, "refiner_decoder": "native", "refiner_tile_size": 768,
+    "profile": "triton4", "seconds": 5, "width": 896, "height": 512,
+    "refiner": False, "fast_decode": False, "refiner_decoder": "native", "refiner_tile_size": 768,
     "save_draft": False,
+    "postprocess": {"upscale": False, "denoise": False, "deblur": False, "interpolate": False, "hdr": False},
 }
 
 
@@ -38,9 +38,6 @@ def build_workflow(data):
     if unknown:
         raise ValueError("Unknown request fields: " + ", ".join(sorted(unknown)))
     defaults = dict(DEFAULT_VIDEO_SETTINGS)
-    for dimension in ("width", "height"):
-        if dimension in data:
-            defaults.pop("draft_" + dimension)
     if mode in ("postprocess", "refine"):
         defaults["refiner"] = False
         defaults["fast_decode"] = False
@@ -48,6 +45,8 @@ def build_workflow(data):
         defaults["fast_decode"] = False
     data = {**defaults, **data}
     graph = {}
+    requested_seed = data.get("seed")
+    seed = secrets.randbits(53) if requested_seed in (None, -1) else int(requested_seed)
 
     def node(key, kind, **inputs):
         graph[key] = {"class_type": kind, "inputs": inputs}
@@ -61,6 +60,12 @@ def build_workflow(data):
     post = data.get("postprocess", {})
     if not isinstance(post, dict):
         raise ValueError("postprocess must be an object")
+    unknown_post = set(post) - {"upscale", "scale", "quality", "denoise", "deblur", "interpolate", "fps_multiplier", "hdr"}
+    if unknown_post:
+        raise ValueError("Unknown postprocess fields: " + ", ".join(sorted(unknown_post)))
+    for key in ("upscale", "denoise", "deblur", "interpolate", "hdr"):
+        if key in post and not isinstance(post[key], bool):
+            raise ValueError("postprocess." + key + " must be a boolean")
     for key in ("ref_images", "ref_videos", "ref_audios"):
         if not isinstance(data.get(key, []), list):
             raise ValueError(key + " must be a list of uploaded filenames")
@@ -148,7 +153,7 @@ def build_workflow(data):
             node("condition", "MiniMaxH3AudioConditioningT8", **condition)
         node("clock", "MiniMaxH3DualClockSamplerT8", model=model, av_latent=latent, steps=steps, shift_video=12.0, shift_audio=3.0)
         node("guider", "BasicGuider", model=["clock", 0], conditioning=positive)
-        node("noise", "RandomNoise", noise_seed=int(data.get("seed", secrets.randbits(53))))
+        node("noise", "RandomNoise", noise_seed=seed)
         node("sample", "SamplerCustomAdvanced", noise=["noise", 0], guider=["guider", 0], sampler=["clock", 1], sigmas=["clock", 2], latent_image=latent)
         decode_vae = node("decode_vae", "VAELoader", vae_name="taeh3.safetensors") if data.get("fast_decode") else ["vae", 0]
         node("decode", "MiniMaxH3AVDecodeT8", av_latent=["sample", 0], video_vae=decode_vae, audio_vae=["audio_vae", 0])
@@ -177,7 +182,7 @@ def build_workflow(data):
         node("refine_text", "CLIPTextEncode", text=data.get("prompt", ""), clip=["refine_clip", 0])
         node("refine_condition", "LTXVConditioning", positive=["refine_text", 0], negative=["refine_text", 0], frame_rate=fps)
         node("refine_guider", "BasicGuider", model=["refine_model", 0], conditioning=["refine_condition", 0])
-        node("refine_noise", "RandomNoise", noise_seed=int(data.get("seed", secrets.randbits(53))))
+        node("refine_noise", "RandomNoise", noise_seed=seed)
         node("refine_sampler", "KSamplerSelect", sampler_name="euler")
         node("refine_sigmas", "ManualSigmas", sigmas="0.909375, 0")
         node("refine_sample", "SamplerCustomAdvanced", noise=["refine_noise", 0], guider=["refine_guider", 0], sampler=["refine_sampler", 0], sigmas=["refine_sigmas", 0], latent_image=["refine_upscale", 0])
@@ -201,7 +206,9 @@ def build_workflow(data):
     if post.get("deblur"):
         images = node("deblur", "RTXVideoSuperResolution", images=images, resize_type="scale by multiplier",
                       **{"resize_type.scale": 1.0}, quality="DEBLUR_HIGH", strength=1.0, image_encoding="8-bit RGB")
-    multiplier = int(post.get("fps_multiplier", 1))
+    multiplier = int(post.get("fps_multiplier", 2 if post.get("interpolate") else 1))
+    if post.get("interpolate") is False:
+        multiplier = 1
     if multiplier > 1:
         last = node("last_image", "ImageFromBatch", image=images, batch_index=-1, length=1)
         images = node("interpolate", "RTXVideoFrameGeneration", images=images, generation_type="frame rate multiplier",

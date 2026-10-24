@@ -11,6 +11,7 @@ ComfyUI-OneAPI-Swagger 是一个为 ComfyUI 提供简单REST API接口的插件�
 新增本地图片、H3→SoL 二阶段视频、中文 TTS/ASR 与声音克隆接口，共用 ComfyUI 原生队列。Qwen-Image-2.1 / Turbo 支持多图参考、OpenAI 图文混排和 SSE；GPU 池按容量复用或回收模型。图片、音频和同步视频对比页展示当前用户的实测记录。
 
 - [统一 API、多图示例及实测结果](docs/UNIFIED_MEDIA_API.md)
+- [Mac mini 调用方：快速预览、正式产出与后处理参数](docs/VIDEO_CLIENT_GUIDE.md)
 - [视频接口与工作流](docs/LOCAL_VIDEO_API.md)
 - [模型、可选依赖、大图上传及部署要求](docs/DEPLOYMENT.md)
 
