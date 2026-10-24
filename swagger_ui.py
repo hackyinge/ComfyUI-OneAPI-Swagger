@@ -9,7 +9,8 @@ SWAGGER_UI_HTML = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ComfyUI-OneAPI-Swagger - Swagger UI</title>
-    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23305cf5%27/%3E%3Cpath d=%27M12 8l13 8-13 8z%27 fill=%27white%27/%3E%3C/svg%3E">
+    <link rel="stylesheet" type="text/css" href="/oneapi/assets/swagger-ui.css">
     <style>
         body {
             margin: 0;
@@ -116,8 +117,8 @@ SWAGGER_UI_HTML = """
     <!-- Swagger UI 容器 -->
     <div id="swagger-ui"></div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.min.js"></script>
+    <script src="/oneapi/assets/swagger-ui-bundle.js"></script>
+    <script src="/oneapi/assets/swagger-ui-standalone-preset.js"></script>
     <script>
         window.onload = function() {
             // 初始化 Swagger UI
@@ -125,6 +126,8 @@ SWAGGER_UI_HTML = """
                 url: '/oneapi/openapi.json',
                 dom_id: '#swagger-ui',
                 deepLinking: true,
+                persistAuthorization: true,
+                validatorUrl: null,
                 presets: [
                     SwaggerUIBundle.presets.apis,
                     SwaggerUIStandalonePreset

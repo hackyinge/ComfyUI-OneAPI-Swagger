@@ -18,8 +18,7 @@ def init_oneapi():
 
 # This function will be automatically called when ComfyUI loads the plugin
 WEB_DIRECTORY = "./web"
-NODE_CLASS_MAPPINGS = {}
-NODE_DISPLAY_NAME_MAPPINGS = {}
+from local_audio import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
 # Initialize API
 init_oneapi() 

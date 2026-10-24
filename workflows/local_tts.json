@@ -1,0 +1,26 @@
+{
+  "1": {
+    "class_type": "OneAPIPiperSpeech",
+    "inputs": {
+      "text": "你好，欢迎使用本地语音服务。",
+      "voice": "zh_CN-huayan-medium.onnx",
+      "speed": 1.0
+    },
+    "_meta": {
+      "title": "$prompt.text"
+    }
+  },
+  "2": {
+    "class_type": "SaveAudio",
+    "inputs": {
+      "audio": [
+        "1",
+        0
+      ],
+      "filename_prefix": "oneapi/bf6cdfa8d63edcb7"
+    },
+    "_meta": {
+      "title": "$output.save"
+    }
+  }
+}

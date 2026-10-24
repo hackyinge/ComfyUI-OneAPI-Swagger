@@ -1,0 +1,53 @@
+{
+  "1": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "uploaded.wav"
+    },
+    "_meta": {
+      "title": "$reference_audio.audio"
+    }
+  },
+  "2": {
+    "class_type": "OneAPIQwenSpeech",
+    "inputs": {
+      "model": "qwen3-tts-clone-0.6b",
+      "text": "你好，这是使用参考音色说出的新句子。",
+      "voice": "Vivian",
+      "language": "Chinese",
+      "instruct": "",
+      "speed": 1.0,
+      "seed": 42,
+      "reference_text": "请替换为参考音频的准确文本。",
+      "x_vector_only": false,
+      "reference_audio": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "$prompt.text,$voice.voice,$language.language,$instruct.instruct,$seed.seed,$reference_text.reference_text"
+    }
+  },
+  "3": {
+    "class_type": "SaveText",
+    "inputs": {
+      "text": [
+        "2",
+        1
+      ],
+      "filename_prefix": "oneapi/6128d8ee9d3f354b_generation",
+      "format": "json"
+    }
+  },
+  "4": {
+    "class_type": "SaveAudio",
+    "inputs": {
+      "audio": [
+        "2",
+        0
+      ],
+      "filename_prefix": "oneapi/6128d8ee9d3f354b"
+    }
+  }
+}

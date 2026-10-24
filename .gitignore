@@ -38,3 +38,5 @@ Thumbs.db
 *.log
 *.zip
 
+# Local workflow backups
+.backup/

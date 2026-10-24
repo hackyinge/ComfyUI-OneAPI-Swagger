@@ -1,0 +1,474 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+      "type": "minimax",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    }
+  },
+  "5": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+      "strength_model": 1.0
+    }
+  },
+  "6": {
+    "class_type": "MiniMaxH3MemoryEfficientSolAttentionPatch",
+    "inputs": {
+      "model": [
+        "5",
+        0
+      ],
+      "enabled": true,
+      "tau": 1.0,
+      "min_tokens": 4096,
+      "strict": true,
+      "thresh_type": "diag",
+      "int8_qk": false,
+      "int8_pv": false,
+      "sink_conditioning": "exact_kv",
+      "dense_blocks": "0-2,-1"
+    }
+  },
+  "7": {
+    "class_type": "MiniMaxH3AudioConditioningT8",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "video_vae": [
+        "3",
+        0
+      ],
+      "audio_vae": [
+        "4",
+        0
+      ],
+      "prompt": "A woman waves once in a sunlit kitchen and says hello. Fixed camera.",
+      "width": 896,
+      "height": 512,
+      "length": 124,
+      "task_type": "auto",
+      "audio_mode": "native",
+      "audio_denoise_strength": 0.35,
+      "add_source_as_reference": false,
+      "prompt_primary_audio_ordinal": 0,
+      "strict_prompt_tags": false,
+      "ref_image_size": "match",
+      "reference_video_policy": "model_minimum"
+    },
+    "_meta": {
+      "title": "$prompt.prompt"
+    }
+  },
+  "8": {
+    "class_type": "MiniMaxH3DualClockSamplerT8",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "av_latent": [
+        "7",
+        1
+      ],
+      "steps": 4,
+      "shift_video": 12.0,
+      "shift_audio": 3.0
+    }
+  },
+  "9": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "conditioning": [
+        "7",
+        0
+      ]
+    }
+  },
+  "10": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 42
+    },
+    "_meta": {
+      "title": "$seed.noise_seed"
+    }
+  },
+  "11": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "10",
+        0
+      ],
+      "guider": [
+        "9",
+        0
+      ],
+      "sampler": [
+        "8",
+        1
+      ],
+      "sigmas": [
+        "8",
+        2
+      ],
+      "latent_image": [
+        "7",
+        1
+      ]
+    }
+  },
+  "12": {
+    "class_type": "MiniMaxH3AVDecodeT8",
+    "inputs": {
+      "av_latent": [
+        "11",
+        0
+      ],
+      "video_vae": [
+        "3",
+        0
+      ],
+      "audio_vae": [
+        "4",
+        0
+      ]
+    }
+  },
+  "13": {
+    "class_type": "MiniMaxH3OutputTrimT8",
+    "inputs": {
+      "frames": [
+        "12",
+        0
+      ],
+      "audio": [
+        "12",
+        1
+      ],
+      "start_seconds": 0.0,
+      "duration_seconds": 5.0,
+      "fps": 24.0
+    }
+  },
+  "14": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "13",
+        0
+      ],
+      "audio": [
+        "13",
+        1
+      ],
+      "fps": 24.0,
+      "color_space": "sRGB",
+      "bit_depth": 8
+    }
+  },
+  "15": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "14",
+        0
+      ],
+      "filename_prefix": "local_video/h3_draft_46bde231d81d1e70",
+      "format": "mp4",
+      "format.codec": "h264",
+      "format.codec.encoding": "re-encode",
+      "format.codec.encoding.crf": 18.0
+    },
+    "_meta": {
+      "title": "$output.draft"
+    }
+  },
+  "16": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "13",
+        0
+      ],
+      "upscale_method": "bicubic",
+      "width": 672,
+      "height": 384,
+      "crop": "disabled"
+    }
+  },
+  "17": {
+    "class_type": "ImageFromBatch",
+    "inputs": {
+      "image": [
+        "16",
+        0
+      ],
+      "batch_index": -1,
+      "length": 1
+    }
+  },
+  "18": {
+    "class_type": "RepeatImageBatch",
+    "inputs": {
+      "image": [
+        "17",
+        0
+      ],
+      "amount": 1
+    }
+  },
+  "19": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "16",
+        0
+      ],
+      "image2": [
+        "18",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "sol-refiner-ltx-2.5-h3-video-vae-bf16.safetensors"
+    }
+  },
+  "21": {
+    "class_type": "VAEEncodeTiled",
+    "inputs": {
+      "pixels": [
+        "19",
+        0
+      ],
+      "vae": [
+        "20",
+        0
+      ],
+      "tile_size": 512,
+      "overlap": 64,
+      "temporal_size": 128,
+      "temporal_overlap": 8
+    }
+  },
+  "22": {
+    "class_type": "LatentUpscaleModelLoader",
+    "inputs": {
+      "model_name": "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+    }
+  },
+  "23": {
+    "class_type": "LTXVLatentUpsampler",
+    "inputs": {
+      "samples": [
+        "21",
+        0
+      ],
+      "upscale_model": [
+        "22",
+        0
+      ],
+      "vae": [
+        "20",
+        0
+      ]
+    }
+  },
+  "24": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "sol-refiner-ltx-2.5-h3-transformer-comfy-int8-convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "25": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "gemma4-12b-with-proj-sol-refiner-ltx-2.5-h3-comfy-int8-convrot.safetensors",
+      "type": "ltxv",
+      "device": "default"
+    }
+  },
+  "26": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "A woman waves once in a sunlit kitchen and says hello. Fixed camera.",
+      "clip": [
+        "25",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "$prompt.text"
+    }
+  },
+  "27": {
+    "class_type": "LTXVConditioning",
+    "inputs": {
+      "positive": [
+        "26",
+        0
+      ],
+      "negative": [
+        "26",
+        0
+      ],
+      "frame_rate": 24.0
+    }
+  },
+  "28": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "24",
+        0
+      ],
+      "conditioning": [
+        "27",
+        0
+      ]
+    }
+  },
+  "29": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 42
+    },
+    "_meta": {
+      "title": "$seed.noise_seed"
+    }
+  },
+  "30": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "31": {
+    "class_type": "ManualSigmas",
+    "inputs": {
+      "sigmas": "0.909375, 0"
+    }
+  },
+  "32": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "29",
+        0
+      ],
+      "guider": [
+        "28",
+        0
+      ],
+      "sampler": [
+        "30",
+        0
+      ],
+      "sigmas": [
+        "31",
+        0
+      ],
+      "latent_image": [
+        "23",
+        0
+      ]
+    }
+  },
+  "33": {
+    "class_type": "VAEDecodeTiled",
+    "inputs": {
+      "samples": [
+        "32",
+        0
+      ],
+      "vae": [
+        "20",
+        0
+      ],
+      "tile_size": 768,
+      "overlap": 64,
+      "temporal_size": 64,
+      "temporal_overlap": 8
+    }
+  },
+  "34": {
+    "class_type": "ImageFromBatch",
+    "inputs": {
+      "image": [
+        "33",
+        0
+      ],
+      "batch_index": 0,
+      "length": 120
+    }
+  },
+  "35": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "34",
+        0
+      ],
+      "audio": [
+        "13",
+        1
+      ],
+      "fps": 24.0,
+      "color_space": "sRGB",
+      "bit_depth": 8
+    }
+  },
+  "36": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "35",
+        0
+      ],
+      "filename_prefix": "local_video/a4d41e5ecefc947f",
+      "format": "mp4",
+      "format.codec": "h264",
+      "format.codec.encoding": "re-encode",
+      "format.codec.encoding.crf": 18.0
+    },
+    "_meta": {
+      "title": "$output.video"
+    }
+  }
+}

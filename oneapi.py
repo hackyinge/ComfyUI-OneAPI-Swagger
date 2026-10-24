@@ -19,6 +19,9 @@ import execution
 from workflow_format import adjust_workflow_format
 from openapi_spec import OPENAPI_SPEC
 from swagger_ui import SWAGGER_UI_HTML
+from video_api import register_video_routes, video_openapi, read_settings
+from media_api import register_media_routes, media_openapi, qwen_chat_completion
+from media_workflows import IMAGE_MODELS
 
 # Constants
 API_WORKFLOWS_DIR = 'api_workflows'
@@ -59,6 +62,13 @@ async def swagger_ui(request):
     """
     return web.Response(text=SWAGGER_UI_HTML, content_type='text/html')
 
+@routes.get('/oneapi/assets/{name}')
+async def swagger_asset(request):
+    name = request.match_info['name']
+    if name not in {'swagger-ui.css', 'swagger-ui-bundle.js', 'swagger-ui-standalone-preset.js'}:
+        raise web.HTTPNotFound()
+    return web.FileResponse(os.path.join(os.path.dirname(__file__), 'swagger_assets', name))
+
 @routes.get('/oneapi/openapi.json')
 async def openapi_spec(request):
     """
@@ -84,6 +94,19 @@ async def openapi_spec(request):
         }
     ]
     
+    video_spec = video_openapi()
+    spec['paths'].update(video_spec['paths'])
+    media_spec = media_openapi()
+    spec['paths'].update(media_spec['paths'])
+    components = spec.setdefault('components', {})
+    components.setdefault('schemas', {}).update(video_spec['components']['schemas'])
+    components['schemas'].update(media_spec['schemas'])
+    components.setdefault('securitySchemes', {}).update(video_spec['components']['securitySchemes'])
+    spec['security'] = [{'bearerAuth': []}]
+    spec['tags'].extend([{'name': 'video', 'description': 'H3、SoL Refiner 与 NVIDIA 后处理'}, {'name': 'comparison', 'description': '本机视频对比与运行证据'}, {'name': 'media', 'description': '统一本地文生图、图生图、视频、TTS与ASR'}])
+    for path, operations in video_spec['paths'].items():
+        for operation in operations.values():
+            operation['tags'] = ['comparison' if 'comparison' in path else 'video']
     return web.json_response(spec)
 
 @routes.post('/oneapi/v1/save-api-workflow')
@@ -201,6 +224,8 @@ async def execute_workflow(request):
         # Submit workflow to ComfyUI queue
         try:
             prompt_id = await _queue_prompt(workflow, client_id, prompt_ext_params, request)
+        except web.HTTPException:
+            raise
         except Exception as e:
             error_message = f"Failed to submit workflow: [{type(e)}] {str(e)}"
             print(error_message)
@@ -220,6 +245,8 @@ async def execute_workflow(request):
         result = await _wait_for_results(prompt_id, timeout, request, output_id_2_var)
         return web.json_response(result)
         
+    except web.HTTPException:
+        raise
     except Exception as e:
         print(f"Error executing workflow: {str(e)}, {traceback.format_exc()}")
         return web.json_response({"error": str(e)}, status=500)
@@ -406,8 +433,10 @@ async def chat_completions(request):
     }
     """
     try:
-        data = await request.json()
+        data = await read_settings(request)
         model = data.get('model', 'LTX-more-image-2-3')
+        if model in IMAGE_MODELS:
+            return await qwen_chat_completion(request, data)
         messages = data.get('messages', [])
         
         if not messages:
@@ -794,8 +823,9 @@ async def _resolve_placeholder(input_value, params, node_class_type, node_data, 
             return new_value
         else:
             print(f"[DEBUG] ❌ image not found in params")
-    
+
     return None
+
 
 async def _extract_output_nodes(workflow):
     """
@@ -1033,6 +1063,11 @@ async def _queue_prompt(workflow, client_id, prompt_ext_params=None, request=Non
     if prompt_ext_params:
         prompt_data.update(prompt_ext_params)
     
+    validation = await execution.validate_prompt(str(uuid.uuid4()), prompt_data["prompt"], prompt_data.get("partial_execution_targets"))
+    if not validation[0] or validation[3]:
+        error = validation[1] or {"type": "partial_output_validation_failed", "message": "Every requested output must pass validation"}
+        raise web.HTTPBadRequest(text=json.dumps({"error": error, "node_errors": validation[3]}), content_type="application/json")
+
     json_data = json.dumps(prompt_data)
     
     # Use aiohttp to send request with dynamic server URL
@@ -1047,7 +1082,10 @@ async def _queue_prompt(workflow, client_id, prompt_ext_params=None, request=Non
             ) as response:
             if response.status != 200:
                 response_text = await response.text()
-                raise Exception(f"Failed to submit workflow: [{response.status}] {response_text}")
+                error = {400: web.HTTPBadRequest, 401: web.HTTPUnauthorized, 403: web.HTTPForbidden}.get(response.status)
+                if error:
+                    raise error(text=response_text, content_type=response.content_type)
+                raise RuntimeError(f"Failed to submit workflow: [{response.status}] {response_text}")
             
             result = await response.json()
             prompt_id = result.get("prompt_id")
@@ -1154,7 +1192,7 @@ def _split_media_by_suffix(node_output, base_url):
                 print(f"Invalid media data: {media_key} | {media_data}")
                 continue
             
-            url = f"{base_url}/api/view?filename={filename}"
+            url = f"{base_url}/view?filename={filename}"
             if subfolder:
                 url += f"&subfolder={subfolder}"
             if media_type:
@@ -1339,3 +1377,7 @@ async def _load_workflow_from_url(url):
                 raise Exception(f"Invalid workflow JSON from url: {e}")
 
 print("ComfyUI-OneAPI-Swagger routes registered")
+
+
+register_video_routes(_queue_prompt)
+register_media_routes(_queue_prompt)

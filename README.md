@@ -6,6 +6,16 @@ ComfyUI-OneAPI-Swagger 是一个为 ComfyUI 提供简单REST API接口的插件�
 > 本项目基于 [puke3615/ComfyUI-OneAPI](https://github.com/puke3615/ComfyUI-OneAPI) 进行二次开发。  
 > 感谢原作者的优秀工作和开源贡献！在原有功能基础上，本版本新增了 Swagger UI 交互式 API 文档等功能。
 
+## 统一媒体 API
+
+新增本地图片、H3→SoL 二阶段视频、中文 TTS/ASR 与声音克隆接口，共用 ComfyUI 原生队列。Qwen-Image-2.1 / Turbo 支持多图参考、OpenAI 图文混排和 SSE；GPU 池按容量复用或回收模型。图片、音频和同步视频对比页展示当前用户的实测记录。
+
+- [统一 API、多图示例及实测结果](docs/UNIFIED_MEDIA_API.md)
+- [视频接口与工作流](docs/LOCAL_VIDEO_API.md)
+- [模型、可选依赖、大图上传及部署要求](docs/DEPLOYMENT.md)
+
+Swagger 静态资源随插件提供，不依赖外部 CDN。模型权重与测试媒体不包含在仓库中，需由部署者准备。
+
 ## 🎯 为什么选择 ComfyUI-OneAPI？
 
 ![ComfyUI-OneAPI 对比](docs/compare_zh.jpg)

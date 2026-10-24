@@ -1,0 +1,52 @@
+{
+  "1": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "uploaded.wav"
+    },
+    "_meta": {
+      "title": "$input_audio.audio"
+    }
+  },
+  "2": {
+    "class_type": "OneAPIWhisperTranscribe",
+    "inputs": {
+      "audio": [
+        "1",
+        0
+      ],
+      "model": "faster-whisper-small",
+      "language": "auto",
+      "task": "transcribe",
+      "word_timestamps": true
+    }
+  },
+  "3": {
+    "class_type": "SaveText",
+    "inputs": {
+      "text": [
+        "2",
+        0
+      ],
+      "filename_prefix": "oneapi/c9c25c5868cecfbc",
+      "format": "txt"
+    },
+    "_meta": {
+      "title": "$output.transcript"
+    }
+  },
+  "4": {
+    "class_type": "SaveText",
+    "inputs": {
+      "text": [
+        "2",
+        1
+      ],
+      "filename_prefix": "oneapi/c9c25c5868cecfbc_segments",
+      "format": "json"
+    },
+    "_meta": {
+      "title": "$output.transcript_details"
+    }
+  }
+}

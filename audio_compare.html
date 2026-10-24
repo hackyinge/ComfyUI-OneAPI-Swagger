@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23305cf5%27/%3E%3Cpath d=%27M12 8l13 8-13 8z%27 fill=%27white%27/%3E%3C/svg%3E"><title>ComfyUI · 中文语音对比</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#202c40;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}header{display:flex;align-items:center;gap:24px;background:white;border-bottom:1px solid #dce2eb;padding:20px 5vw}a{color:#305cf5;text-decoration:none}header strong{margin-right:auto}main{max-width:1400px;margin:auto;padding:32px 5vw}h1{margin:0 0 8px;font-size:32px}h2{margin-top:32px}p{line-height:1.7;color:#586579}.notice{padding:18px 22px;background:#edf2ff;border:1px solid #cad7ff;border-radius:12px;line-height:1.8;white-space:pre-line}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}article{background:white;padding:22px;border:1px solid #dce2eb;border-radius:12px}article h3{margin:0 0 12px;font-size:18px}.tag{font-size:12px;padding:4px 8px;background:#eef2fa;border-radius:5px}.metrics{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:#586579;margin:14px 0}.text{min-height:48px;line-height:1.7}audio{width:100%;margin-top:12px}.table{overflow:auto;background:white;border:1px solid #dce2eb;border-radius:12px}table{border-collapse:collapse;width:100%;min-width:800px}th,td{text-align:left;padding:14px 16px;border-bottom:1px solid #e9edf3;font-size:14px;vertical-align:top}th{background:#eef2f7;white-space:nowrap}.transcript{min-width:270px;line-height:1.7}.error{color:#a52222}details{margin:10px 0;font-size:13px;color:#586579}pre{white-space:pre-wrap;overflow-wrap:anywhere}footer{margin:32px 0;color:#586579;font-size:13px}@media(max-width:750px){.grid{grid-template-columns:1fr}header{gap:12px;font-size:13px}main{padding:24px 16px}h1{font-size:26px}}
+.filters{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:22px 0}.filters select{border:1px solid #ccd5e4;border-radius:8px;padding:9px;background:white;font:inherit}.phase{display:block;margin-top:8px;font-size:12px;color:#586579}.timing{white-space:pre-line;font-variant-numeric:tabular-nums;min-width:125px}.gain{color:#167043;font-weight:600}
+</style></head><body><header><strong>ComfyUI / 中文语音实验室</strong><a href="/oneapi/v1/images/compare">生图对比</a><a href="/oneapi/v1/video/compare">视频对比</a><a href="/oneapi/docs">Swagger API ↗</a></header><main><h1>试听、识别与声音克隆</h1><p>同文案比较音色，同音频比较识别。点击一条试听时，其他音频自动暂停。</p><div id="recommendation" class="notice">正在读取实测结果…</div><div id="error" role="alert"></div><section id="pool-summary" hidden><h2>容量感知 GPU 池调度</h2><p id="pool-protocol"></p><p id="pool-status"></p><div class="table"><table><thead><tr><th>任务</th><th>执行耗时</th><th>可复用GPU权重</th><th>本次回收</th><th>效果核对</th></tr></thead><tbody id="pool-rows"></tbody></table></div><p><a href="/oneapi/v1/gpu-pool">实时显存与调度 JSON</a> · <a href="/oneapi/v1/video/compare?category=gpu_pool">全部GPU池测试视频（同步播放）</a></p></section><section id="resident-summary" hidden><h2>GPU 常驻、逐次加载与 CPU 连续调用</h2><p id="resident-protocol"></p><div class="table"><table><thead><tr><th>固定输入 / 模型</th><th>运行方式</th><th>首条 / 冷调用</th><th>连续调用均值</th><th>空闲 / 峰值 GPU 总占用</th><th>效果核对</th></tr></thead><tbody id="resident-rows"></tbody></table></div></section><section id="speed-summary" hidden><h2>上轮：默认方案加载与速度优化</h2><p id="speed-protocol"></p><div class="table"><table><thead><tr><th>固定输入</th><th>优化前总执行</th><th>优化后总执行</th><th>耗时减少</th><th>效果核对</th></tr></thead><tbody id="speed-rows"></tbody></table></div></section><div class="filters"><label for="scope">结果范围</label><select id="scope"><option value="current">本轮GPU池试听 / 识别</option><option value="after">上轮 GPU 常驻</option><option value="cpu">上轮 CPU 常驻</option><option value="reload">上轮 GPU 逐次加载</option><option value="previous">上轮加载优化</option><option value="all">全部历史</option></select><span id="record-count"></span></div><h2>中文 TTS 与声音克隆</h2><p>克隆参考使用 Qwen 合成的 Vivian 音色；原音色、克隆音色分别使用新文案，方便比较音色保持情况。</p><section id="tts" class="grid"></section><h2>ASR 识别结果</h2><p id="protocol"></p><div class="table"><table><thead><tr><th>测试音频</th><th>模型</th><th>总执行 / 加载 / 推理 / 其他 / 请求</th><th>识别文本</th><th>内容字错率 CER</th></tr></thead><tbody id="asr"></tbody></table></div><h2 id="other-heading">独立音频与附加测试</h2><section id="other" class="grid"></section><footer>总执行含加载、启动和原生保存，不含队列等待；其他开销=总执行−加载−推理。默认采用容量感知GPU池，保留上轮常驻、CPU与逐次加载对照；冷调用与连续调用分别记录，节点输出缓存命中不计入推理。GPU 总占用包含 ComfyUI CUDA 上下文，CPU 推理的新增显存为 0。视频或生图前自动检查显存，不足时回收闲置模型；也可用 POST /oneapi/v1/audio/unload 主动释放语音模型。<a href="/oneapi/v1/audio/comparison">查看完整测试数据 JSON ↗</a></footer></main>
+<script>
+const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n};
+const seconds=v=>Number.isFinite(v)?v.toFixed(2)+' 秒':'—';
+const titles={piper_short:'Piper · 短句基线',qwen_vivian_short_api:'Qwen Vivian · 短句',piper_long:'Piper · 固定中文长句',qwen_vivian_long:'Qwen Vivian · 固定中文长句 / 克隆参考',qwen_uncle_fu_long:'Qwen 福叔 · 固定中文长句',qwen_clone_icl:'声音克隆 · 参考音频 + 文本',qwen_clone_embedding:'声音克隆 · 仅音色向量',qwen_original_clone_text:'原 Vivian 音色 · 与克隆相同新文案',qwen_06_vivian_long:'Qwen 0.6B Vivian · 低显存对照',qwen_vivian_speed12:'Qwen Vivian · 后处理 1.2 倍速',qwen_numbers_mixed:'Qwen Vivian · 数字与中英混读',default_after_restart:'默认中文语音 · 重启后实测'};
+const inputTitles={baseline_short:'Piper 固定短句',piper_long:'Piper 固定长句',qwen_long:'Qwen 固定长句',official_zh:'Qwen 官方真人录音',clone:'参考音频+文本克隆',sherpa_public_zh:'sherpa 官方真人录音',qwen06_long:'Qwen 0.6B 固定长句',uncle_fu:'福叔固定长句',clone_embedding:'仅音色向量克隆',numbers_mixed:'数字与中英混读','qwen_long + context + alignment':'Qwen 上下文+字级对齐','restart default TTS':'重启后默认语音'};
+const audio=record=>{const n=el('audio');n.controls=true;n.preload='metadata';n.src=record.audio_url;n.addEventListener('play',()=>document.querySelectorAll('audio').forEach(a=>{if(a!==n)a.pause()}));return n};
+function timing(r){
+ const other=Number.isFinite(r.load_seconds)&&Number.isFinite(r.inference_seconds)?Math.max(0,r.execution_seconds-r.load_seconds-r.inference_seconds):undefined;
+ return [['总执行',r.execution_seconds],['加载',r.load_seconds],['推理',r.inference_seconds],['其他',other],['请求',r.request_seconds]];
+}
+function render(data){
+ document.querySelectorAll('audio').forEach(a=>a.pause());
+ for(const id of ['tts','asr','other'])document.getElementById(id).replaceChildren();
+ const scope=document.getElementById('scope').value;
+ const experiment=data.current_experiment||'loading_speed_v2';
+ const mode={after:'gpu_resident',cpu:'cpu_resident',reload:'gpu_reload'}[scope];
+ const filtered=data.records.filter(r=>scope==='all'||(scope==='previous'?r.experiment==='loading_speed_v2':r.experiment===(mode?'residency_v3':experiment)&&(!mode||r.mode===mode)));
+ document.getElementById('record-count').textContent=filtered.length+' 条结果';
+ document.getElementById('other-heading').hidden=!filtered.some(r=>r.kind==='reference');
+ const phases={before:0,after:1},cases={short:0,long:1,numbers:2};
+ const speech=filtered.filter(r=>r.kind==='tts');
+ if(scope!=='all')speech.sort((a,b)=>(cases[a.input]??99)-(cases[b.input]??99)||(a.repeat??0)-(b.repeat??0)||(phases[a.stage]??2)-(phases[b.stage]??2));
+ const records=[...speech,...filtered.filter(r=>r.kind==='reference'),...filtered.filter(r=>r.kind==='asr').sort((a,b)=>a.input.localeCompare(b.input)||(a.repeat??0)-(b.repeat??0)||(phases[a.stage]??2)-(phases[b.stage]??2)||a.model.localeCompare(b.model))];
+ for(const r of records){
+  if(r.kind==='asr'){
+   const row=el('tr'),input=el('td'),model=el('td',r.model);
+   input.append(el('strong',inputTitles[r.input]||r.input),audio(r));
+   if(r.title)model.append(el('span',r.title,'phase'));
+   if(r.acceleration)model.append(el('span',r.acceleration,'phase'));
+   const evidence=el('details');evidence.append(el('summary','参数与证据'),el('pre',JSON.stringify({options:r.options,job_id:r.job_id,model_cache_hit:r.model_cache_hit,device:r.device,dtype:r.dtype,load_seconds:r.load_seconds,inference_seconds:r.inference_seconds,request_seconds:r.request_seconds,alignment_seconds:r.alignment_seconds,segments:r.segments},null,2)));model.append(evidence);
+   const times=timing(r).filter(x=>x[1]!==undefined).map(([label,value])=>label+' '+seconds(value)).join('\n')+(Number.isFinite(r.gpu_idle_mb)?'\nGPU 空闲 '+Math.round(r.gpu_idle_mb)+' MiB / 峰值 '+Math.round(r.gpu_peak_mb)+' MiB':'');
+   row.append(input,model,el('td',times,'timing'),el('td',r.text,'transcript'),el('td',r.content_cer===null||r.content_cer===undefined?'无独立标注':(r.content_cer*100).toFixed(1)+'%'));
+   document.querySelector('#asr').append(row);continue;
+  }
+  const card=el('article');card.append(el('h3',r.title||titles[r.id]||r.id),el('span',r.model||r.kind,'tag'),el('p',r.text||r.description||'','text'));
+  if(r.acceleration)card.append(el('span',r.acceleration,'phase'));
+  const metrics=el('div',undefined,'metrics');
+  if(r.duration!==undefined)metrics.append(el('span','音频 '+seconds(r.duration)));
+  for(const [label,value] of timing(r))if(value!==undefined)metrics.append(el('span',label+' '+seconds(value)));
+  if(r.execution_seconds&&r.duration)metrics.append(el('span','RTF '+(r.execution_seconds/r.duration).toFixed(2)));
+  if(r.peak_vram_mb)metrics.append(el('span','模型分配峰值 '+Math.round(r.peak_vram_mb)+' MiB'));
+  if(Number.isFinite(r.gpu_idle_mb))metrics.append(el('span','GPU 总占用：空闲 '+Math.round(r.gpu_idle_mb)+' / 峰值 '+Math.round(r.gpu_peak_mb)+' MiB'));
+  if(r.model_cache_hit!==undefined)metrics.append(el('span',r.model_cache_hit?'权重复用 · 本次未重载':'本次加载权重'));
+  card.append(metrics,audio(r));if(r.assessment)card.append(el('p',r.assessment));
+  const details=el('details');details.append(el('summary','参数与证据'),el('pre',JSON.stringify({model:r.model,options:r.options,job_id:r.job_id,peak_vram_mb:r.peak_vram_mb,cache_control_valid:r.cache_control_valid,runtime:r.runtime,library_preload_seconds:r.library_preload_seconds,checkpoint_loaded_each_call:r.checkpoint_loaded_each_call,device:r.device,model_cache_hit:r.model_cache_hit,gpu_before_mb:r.gpu_before_mb,gpu_idle_mb:r.gpu_idle_mb,gpu_peak_mb:r.gpu_peak_mb},null,2)));card.append(details);
+  document.querySelector(r.kind==='tts'?'#tts':'#other').append(card);
+ }
+}
+fetch('/oneapi/v1/audio/comparison').then(async r=>{if(!r.ok)throw Error('读取失败：'+r.status);return r.json()}).then(data=>{
+ document.querySelector('#recommendation').textContent=data.recommendation;
+ document.querySelector('#protocol').textContent=data.protocol;
+ if(data.gpu_pool_comparison){
+  document.querySelector('#pool-summary').hidden=false;
+  document.querySelector('#pool-protocol').textContent=data.gpu_pool_comparison.protocol;
+  for(const r of data.gpu_pool_comparison.rows.filter(r=>r.phase==='final_model_groups')){const row=el('tr');row.append(el('td',r.id),el('td',seconds(r.seconds)+(r.output_cached?'（输出缓存，不计推理）':'')),el('td',r.reusable_gib.toFixed(2)+' GiB'),el('td',r.evictions.join(' / ')||'无需回收'),el('td',r.quality||'调度验证，查看视频原片'));document.querySelector('#pool-rows').append(row)}
+  fetch('/oneapi/v1/gpu-pool').then(r=>r.json()).then(p=>document.querySelector('#pool-status').textContent='当前空闲显存 '+(p.free_bytes/1024**3).toFixed(2)+' GiB / 总计 '+(p.total_bytes/1024**3).toFixed(2)+' GiB；空闲回收阈值 '+p.idle_timeout_seconds+' 秒').catch(()=>{});
+ }
+ if(data.residency_comparison){
+  document.querySelector('#resident-summary').hidden=false;
+  document.querySelector('#resident-protocol').textContent=data.residency_comparison.protocol;
+  for(const r of data.residency_comparison.rows){const row=el('tr');row.append(el('td',r.label),el('td',r.mode_label),el('td',seconds(r.cold_seconds)),el('td',seconds(r.warm_seconds)+'（'+r.warm_n+'次）'),el('td',Math.round(r.idle_mb)+' / '+Math.round(r.peak_mb)+' MiB'),el('td',r.quality));document.querySelector('#resident-rows').append(row)}
+ }
+ if(data.speed_comparison){
+  document.querySelector('#speed-summary').hidden=false;
+  document.querySelector('#speed-protocol').textContent=data.speed_comparison.protocol;
+  for(const r of data.speed_comparison.rows){const row=el('tr');row.append(el('td',r.label),el('td',seconds(r.before_seconds)),el('td',seconds(r.after_seconds)),el('td',r.reduction_percent.toFixed(1)+'%','gain'),el('td',r.quality));document.querySelector('#speed-rows').append(row)}
+ }else document.getElementById('scope').value='all';
+ document.getElementById('scope').addEventListener('change',()=>render(data));render(data);
+}).catch(e=>{document.querySelector('#error').textContent=e.message;document.querySelector('#recommendation').textContent='测试数据暂时不可用，请先登录后刷新。'});
+</script></body></html>

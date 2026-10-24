@@ -1,0 +1,40 @@
+{
+  "1": {
+    "class_type": "OneAPIQwenSpeech",
+    "inputs": {
+      "model": "qwen3-tts-1.7b",
+      "text": "你好，欢迎使用本地中文语音服务。",
+      "voice": "Vivian",
+      "language": "Chinese",
+      "instruct": "",
+      "speed": 1.0,
+      "seed": 42,
+      "reference_text": "",
+      "x_vector_only": false
+    },
+    "_meta": {
+      "title": "$prompt.text,$voice.voice,$language.language,$instruct.instruct,$seed.seed,$reference_text.reference_text"
+    }
+  },
+  "2": {
+    "class_type": "SaveText",
+    "inputs": {
+      "text": [
+        "1",
+        1
+      ],
+      "filename_prefix": "oneapi/e12f2480ada55e5e_generation",
+      "format": "json"
+    }
+  },
+  "3": {
+    "class_type": "SaveAudio",
+    "inputs": {
+      "audio": [
+        "1",
+        0
+      ],
+      "filename_prefix": "oneapi/e12f2480ada55e5e"
+    }
+  }
+}

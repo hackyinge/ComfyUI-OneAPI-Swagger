@@ -1,0 +1,49 @@
+{
+  "1": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "uploaded.wav"
+    },
+    "_meta": {
+      "title": "$input_audio.audio"
+    }
+  },
+  "2": {
+    "class_type": "OneAPIQwenTranscribe",
+    "inputs": {
+      "audio": [
+        "1",
+        0
+      ],
+      "model": "qwen3-asr-0.6b",
+      "language": "zh",
+      "word_timestamps": true,
+      "prompt": ""
+    },
+    "_meta": {
+      "title": "$language.language"
+    }
+  },
+  "3": {
+    "class_type": "SaveText",
+    "inputs": {
+      "text": [
+        "2",
+        0
+      ],
+      "filename_prefix": "oneapi/393ed437f1addb7a",
+      "format": "txt"
+    }
+  },
+  "4": {
+    "class_type": "SaveText",
+    "inputs": {
+      "text": [
+        "2",
+        1
+      ],
+      "filename_prefix": "oneapi/393ed437f1addb7a_segments",
+      "format": "json"
+    }
+  }
+}
