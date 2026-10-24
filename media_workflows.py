@@ -16,6 +16,11 @@ DEFAULT_TTS_MODEL = 'qwen3-tts-1.7b'
 DEFAULT_ASR_MODEL = 'qwen3-asr-0.6b'
 
 
+def image_seed(value=None):
+    seed = -1 if value is None else int(value)
+    return secrets.randbits(53) if seed == -1 else seed
+
+
 def build_media_workflow(settings):
     data = {k: v for k, v in settings.items() if k not in ('task', 'client_id')}
     task = settings.get('task', 'image')
@@ -106,7 +111,7 @@ def build_media_workflow(settings):
         raise ValueError('Unknown image model: ' + str(model_name))
     profile = IMAGE_MODELS[model_name]
     width, height, batch = int(data.get('width', 1024)), int(data.get('height', 1024)), int(data.get('n', 1))
-    steps, cfg, seed = int(data.get('steps', profile['steps'])), float(data.get('cfg', profile['cfg'])), int(data.get('seed', secrets.randbits(53)))
+    steps, cfg, seed = int(data.get('steps', profile['steps'])), float(data.get('cfg', profile['cfg'])), image_seed(data.get('seed'))
     model = node('model', 'UNETLoader', unet_name=profile['unet'], weight_dtype='default')
     clip = node('clip', 'CLIPLoader', clip_name=profile['clip'], type=profile['clip_type'], device='default')
     vae = node('vae', 'VAELoader', vae_name=profile['vae'])

@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
@@ -21,6 +22,24 @@ class MediaWorkflowTests(unittest.TestCase):
         self.assertEqual(graph['sample']['inputs']['guider'], ['guider', 0])
         self.assertEqual(graph['guider']['inputs']['cfg'], 1.0)
         self.assertNotIn('sampling', graph)
+
+    def test_image_requests_randomize_omitted_null_and_minus_one_seeds(self):
+        for model in ('qwen-image-2.1', 'qwen-image-2.1-turbo'):
+            for extra in ({}, {'seed': None}, {'seed': -1}):
+                with self.subTest(model=model, extra=extra), patch('media_workflows.secrets.randbits', side_effect=[123, 456]) as rng:
+                    graphs = [build_media_workflow({'model': model, **extra}) for _ in range(2)]
+                    key, field = ('sample', 'seed') if model == 'qwen-image-2.1' else ('noise', 'noise_seed')
+                    self.assertEqual([g[key]['inputs'][field] for g in graphs], [123, 456])
+                    self.assertEqual(rng.call_count, 2)
+
+    def test_explicit_image_seeds_including_zero_are_kept_without_rng(self):
+        for model in ('qwen-image-2.1', 'qwen-image-2.1-turbo'):
+            for seed in (0, 42):
+                with self.subTest(model=model, seed=seed), patch('media_workflows.secrets.randbits') as rng:
+                    graph = build_media_workflow({'model': model, 'seed': seed})
+                    key, field = ('sample', 'seed') if model == 'qwen-image-2.1' else ('noise', 'noise_seed')
+                    self.assertEqual(graph[key]['inputs'][field], seed)
+                    rng.assert_not_called()
 
     def test_edit_uses_reference_conditioning_and_native_latent(self):
         for model, kind in [('qwen-image-2.1', 'TextEncodeQwenImage21'), ('qwen-image-2.1-turbo', 'TextEncodeQwenImage21')]:

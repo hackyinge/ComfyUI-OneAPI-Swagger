@@ -170,7 +170,10 @@ def register_video_routes(queue_prompt):
         graph = make_graph(settings, media=request.path == "/oneapi/v1/jobs")
         client_id = settings.get("client_id", str(uuid.uuid4()))
         job_id = await queue_prompt(graph, client_id, prompt_ext_params=settings.get("prompt_ext_params") if request.path == "/oneapi/v1/jobs" else None, request=request)
-        return web.json_response({"id": job_id, "client_id": client_id, "status": "queued", "status_url": ("/oneapi/v1" if request.path == "/oneapi/v1/jobs" else PREFIX) + "/jobs/" + job_id, "workflow": graph, "reference_map": references}, status=202)
+        result = {"id": job_id, "client_id": client_id, "status": "queued", "status_url": ("/oneapi/v1" if request.path == "/oneapi/v1/jobs" else PREFIX) + "/jobs/" + job_id, "workflow": graph, "reference_map": references}
+        if request.path == "/oneapi/v1/jobs" and settings.get("task", "image") == "image" and "workflow" not in settings:
+            result["seed"] = settings["seed"]
+        return web.json_response(result, status=202)
 
 
     @routes.get("/oneapi/v1/jobs/{job_id}")

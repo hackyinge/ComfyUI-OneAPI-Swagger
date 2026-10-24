@@ -55,7 +55,8 @@ def comparison_catalog(request, kind):
 def image_content_properties():
     part = {'type': 'object', 'properties': {'type': {'type': 'string', 'enum': ['text', 'image_url', 'image', 'input_text', 'input_image', 'image_ref']}, 'text': {'type': 'string'}, 'id': {'type': 'string', 'description': 'Optional stable reference id; use <ref:id> in text'}, 'image': {'type': 'string'}, 'image_url': {'oneOf': [{'type': 'string'}, {'type': 'object', 'properties': {'url': {'type': 'string'}}}]}}}
     content = {'oneOf': [{'type': 'string'}, {'type': 'array', 'items': part}]}
-    return {'input_images': {'type': 'array', 'items': {'oneOf': [{'type': 'string'}, {'type': 'object', 'required': ['id', 'image'], 'properties': {'id': {'type': 'string'}, 'image': {'type': 'string'}}}]}, 'description': 'Ordered uploaded filenames or named references. input_image comes first when both are provided.'},
+    return {'seed': {'type': 'integer', 'nullable': True, 'description': 'Images: omit, null or -1 generates a fresh random seed per request; an explicit nonnegative seed is preserved and returned for replay'},
+            'input_images': {'type': 'array', 'items': {'oneOf': [{'type': 'string'}, {'type': 'object', 'required': ['id', 'image'], 'properties': {'id': {'type': 'string'}, 'image': {'type': 'string'}}}]}, 'description': 'Ordered uploaded filenames or named references. input_image comes first when both are provided.'},
             'content': content,
             'messages': {'type': 'array', 'items': {'type': 'object', 'properties': {'role': {'type': 'string'}, 'content': content}}, 'description': 'OpenAI messages; the last user message is the current reference scope. Reattach references needed from earlier turns.'},
             'reference_megapixels': {'type': 'number', 'default': 1.0, 'description': 'Additional references are encoded at about this many MP with aspect ratio preserved; 0 keeps original pixels. Uploaded originals are preserved; first reference uses requested output size.'}}
@@ -172,7 +173,7 @@ async def qwen_chat_completion(request, data):
         result = await task
         images = [{'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,' + item['b64_json']}} for item in result['data']]
         content = '\n'.join(f"![生成图片{i + 1}]({image['image_url']['url']})" for i, image in enumerate(images))
-        metadata = {key: result[key] for key in ('job_id', 'execution_seconds', 'reference_map', 'normalized_prompt')}
+        metadata = {key: result[key] for key in ('job_id', 'execution_seconds', 'seed', 'reference_map', 'normalized_prompt')}
         common = {'id': 'chatcmpl-' + result['job_id'], 'created': result['created'], 'model': payload.get('model', DEFAULT_IMAGE_MODEL)}
         if stream is None:
             return web.json_response({**common, 'object': 'chat.completion', 'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': content, 'images': images}, 'finish_reason': 'stop'}], 'oneapi': metadata})
@@ -320,7 +321,7 @@ def register_media_routes(queue_prompt):
         output = []
         for item in images:
             output.append({'b64_json': base64.b64encode(await output_bytes(request, item['url'])).decode()} if response_format == 'b64_json' else {'url': str(request.url.origin()) + item['url']})
-        return web.json_response({'created': int(time.time()), 'data': output, 'job_id': job_id, 'execution_seconds': result['execution_seconds'], 'reference_map': references, 'normalized_prompt': settings['prompt']})
+        return web.json_response({'created': int(time.time()), 'data': output, 'job_id': job_id, 'execution_seconds': result['execution_seconds'], 'seed': settings['seed'], 'reference_map': references, 'normalized_prompt': settings['prompt']})
 
     @routes.post(PREFIX + '/audio/speech')
     async def speech(request):

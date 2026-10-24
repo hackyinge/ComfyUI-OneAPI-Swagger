@@ -22,6 +22,8 @@
 {"task":"image","model":"qwen-image-2.1-turbo","prompt":"一只橘猫坐在窗边，温暖的自然光，照片风格", "width":1024,"height":1024,"n":1,"seed":42}
 ```
 
+图片随机种子由服务端兜底：不传seed，或传null/-1，每次提交解析为新的53位非负随机数；明确传0或其他非负整数则保持不变，用于复现。同步images响应和chat的oneapi字段返回实际seed；异步jobs的202响应返回seed和含实际种子的原生图。调用方“随机”按钮应省略seed或传-1，不要把上次返回的实际seed自动带回下一次随机请求。命名execute工作流的params.seed同样支持省略/null/-1，但工作流必须带$seed参数标记；直接提交原生workflow时尊重图内明确设置的种子，不自动重写。
+
 图像预设为 `qwen-image-2.1-turbo`（默认，官方完整INT8 ConvRot checkpoint，8步/CFG1）与 `qwen-image-2.1`（普通25步/CFG1对照）。共用Qwen3-VL8B INT8文本编码器与Qwen2.1 VAE，复用GPU池与原生队列。追加input_image走原生参考图编辑，denoise默认1；n控制批量。
 
 Turbo使用官方8步sigma轨迹，4/6步通过对该轨迹线性重采样覆盖完整去噪过程，是可选实验配置，并非官方独立4/6步模型。例如：

@@ -183,7 +183,7 @@ async def execute_workflow(request):
         # Extract parameters
         workflow = data.get('workflow')
         params = data.get('params', {})
-        if 'seed' not in params:
+        if params.get('seed') in (None, -1):
             params['seed'] = random.randint(1, 1125899906842624)
 
         wait_for_result = data.get('wait_for_result', True)

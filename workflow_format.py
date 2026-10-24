@@ -11,7 +11,8 @@ def adjust_workflow_format(workflow: dict) -> Literal['ui', 'api', 'invalid']:
     if isinstance(workflow, dict):
         if 'nodes' in workflow and isinstance(workflow['nodes'], list):
             return 'ui'
-        # Heuristic: API format top-level keys are all digit strings
-        if all(isinstance(k, str) and k.isdigit() for k in workflow.keys()) and len(workflow) > 0:
+        if workflow and all(isinstance(key, str) and isinstance(node, dict) and
+                            isinstance(node.get('class_type'), str) and isinstance(node.get('inputs', {}), dict)
+                            for key, node in workflow.items()):
             return 'api'
     return 'invalid' 

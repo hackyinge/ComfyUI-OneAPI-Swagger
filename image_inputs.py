@@ -10,6 +10,7 @@ from PIL import Image, UnidentifiedImageError
 
 from comfy.cli_args import args
 from video_workflows import upload_name
+from media_workflows import image_seed
 
 
 def normalize_image_content(settings):
@@ -95,6 +96,7 @@ async def prepare_image_settings(request, settings):
         return settings, []
     try:
         data, references = normalize_image_content(settings)
+        data['seed'] = image_seed(data.get('seed'))
         for item in references:
             source = item['filename']
             if not source.startswith('data:'):
